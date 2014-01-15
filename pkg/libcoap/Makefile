@@ -20,9 +20,9 @@ all: patch
 patch: $(CURDIR)/$(PKG_NAME)/Makefile
 
 $(CURDIR)/$(PKG_NAME)/Makefile: $(CURDIR)/$(PKG_NAME)
-	$(foreach patch,$(shell ls [0-9][0-9][0-9][0-9]*.patch),cd "$<" && git am "$(CURDIR)/$(patch)";)
+	$(foreach patch,$(shell ls [0-9][0-9][0-9][0-9]*.patch),cd "$<" && git am --ignore-whitespace "$(CURDIR)/$(patch)";)
 
-$(CURDIR)/$(PKG_NAME):
+$(CURDIR)/$(PKG_NAME)/:
 	git clone $(PKG_URL) $@ && \
 		cd $@ && git checkout $(PKG_VERSION)
 

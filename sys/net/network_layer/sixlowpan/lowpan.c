@@ -1518,7 +1518,7 @@ void lowpan_iphc_decoding(uint8_t *data, uint8_t length, net_if_eui64_t *s_addr,
     memcpy(ptr, &ipv6_hdr_fields[hdr_pos], length - hdr_pos);
 
     /* ipv6 length */
-    ipv6_buf->length = length - hdr_pos;
+    ipv6_buf->length = HTONS(length - hdr_pos);
     packet_length = IPV6_HDR_LEN + ipv6_buf->length;
 }
 

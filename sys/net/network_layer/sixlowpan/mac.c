@@ -56,12 +56,11 @@ uint8_t lowpan_mac_buf[PAYLOAD_SIZE];
 static uint8_t macdsn;
 
 static inline void mac_short_to_eui64(net_if_eui64_t *eui64,
-                                      uint16_t short_addr, uint16_t pan_id)
+                                      uint16_t short_addr)
 {
-    eui64->uint16[0] = pan_id;
-    eui64->uint16[1] = HTONS(0x00FF);
-    eui64->uint16[2] = HTONS(0xFE00);
-    eui64->uint16[3] = short_addr;
+    eui64->uint32[0] = HTONL(0x000000ff);
+    eui64->uint16[2] = HTONS(0xfe00);
+    eui64->uint16[3] = LETONS(short_addr);
 }
 
 void recv_ieee802154_frame(void)
@@ -88,7 +87,7 @@ void recv_ieee802154_frame(void)
      defined(MODULE_CC2420) | \
      defined(MODULE_MC1322X))
             p = (ieee802154_packet_t *) m.content.ptr;
-            hdrlen = ieee802154_frame_read(p->frame.payload, &frame, p->frame.payload_len);
+            hdrlen = ieee802154_frame_read(p->frame, &frame, p->length);
             length = p->frame.payload_len - hdrlen - IEEE_802154_FCS_LEN;
 #else
             p = (radio_packet_t *) m.content.ptr;
@@ -97,8 +96,7 @@ void recv_ieee802154_frame(void)
 #endif
 
             if (frame.fcf.src_addr_m == IEEE_802154_SHORT_ADDR_M) {
-                mac_short_to_eui64(&src, *((uint16_t *)frame.src_addr),
-                                   frame.src_pan_id);
+                mac_short_to_eui64(&src, *((uint16_t *)frame.src_addr));
             }
             else if (frame.fcf.src_addr_m == IEEE_802154_LONG_ADDR_M) {
                 memcpy(&src, frame.src_addr, 8);
@@ -109,8 +107,7 @@ void recv_ieee802154_frame(void)
             }
 
             if (frame.fcf.dest_addr_m == IEEE_802154_SHORT_ADDR_M) {
-                mac_short_to_eui64(&dst, *((uint16_t *)frame.dest_addr),
-                                   frame.dest_pan_id);
+                mac_short_to_eui64(&dst, *((uint16_t *)frame.dest_addr));
             }
             else if (frame.fcf.dest_addr_m == IEEE_802154_LONG_ADDR_M) {
                 memcpy(&dst, frame.dest_addr, 8);
@@ -186,7 +183,7 @@ int sixlowpan_mac_prepare_ieee802144_frame(
         dest_mode = IEEE_802154_SHORT_ADDR_M;
     }
     else {
-        DEBUG("Illegal IEEE 802.15.4 address mode: %d\n", dest_mode);
+        DEBUG("Illegal IEEE 802.15.4 address for address length %d\n", dest_len);
         return -1;
     }
 

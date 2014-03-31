@@ -16,6 +16,11 @@ else ifeq ($(OUTPUT),COMPILER)
 	USEMODULE += embunit_textui
 endif
 
-.PHONY : all clean core
+.PHONY : all clean core tests-core
 
 include $(RIOTBASE)/Makefile.include
+
+tests-core : CFLAGS += -DTEST_NOT_ALL -DTEST_CORE_ENABLED
+tests-core : SRC := $(wildcard tests-core*.c) main.c
+tests-core : OBJ := $(SRC:%.c=${BINDIR}${PROJECT}/%.o)
+tests-core : all

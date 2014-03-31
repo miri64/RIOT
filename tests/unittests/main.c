@@ -10,6 +10,8 @@
 
 #include "lpm.h"
 
+#include "tests-core.h"
+
 #ifdef OUTPUT
 #define OUTPUT_XML      (1)
 #define OUTPUT_TEXT     (2)
@@ -55,7 +57,16 @@ int main(void)
 #endif
 
     TESTS_START();
-    /* put test TEST_RUN() calls here */
+
+#if !defined(TEST_NOT_ALL) || defined(TEST_CORE_ENABLED)
+    TESTS_RUN(tests_core_atomic_tests());
+    TESTS_RUN(tests_core_bitarithm_tests());
+    TESTS_RUN(tests_core_cib_tests());
+    TESTS_RUN(tests_core_clist_tests());
+    TESTS_RUN(tests_core_lifo_tests());
+    TESTS_RUN(tests_core_queue_tests());
+#endif
+
     TESTS_END();
 
     lpm_set(LPM_POWERDOWN);

@@ -16,9 +16,13 @@
  * @author      Freie Universität Berlin, Computer Systems & Telematics
  * @author      Martine Lenders <mlenders@inf.fu-berlin.de>
  */
+
 #ifndef __TESTS_CORE_H_
 #define __TESTS_CORE_H_
-#include "embUnit/embUnit.h"
+
+#include "../unittests.h"
+
+void tests_core(void);
 
 /**
  * @brief   Generates tests atomic.h

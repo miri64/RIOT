@@ -46,7 +46,6 @@ static void test_lifo_get_two(void)
     TEST_ASSERT_EQUAL_INT(0, lifo_get(lifo))
 }
 
-
 Test *tests_core_lifo_tests(void)
 {
     EMB_UNIT_TESTFIXTURES(fixtures) {

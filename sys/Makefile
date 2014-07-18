@@ -116,5 +116,8 @@ endif
 ifneq (,$(filter pipe,$(USEMODULE)))
     DIRS += pipe
 endif
+ifneq (,$(filter netapi,$(USEMODULE)))
+    DIRS += net/crosslayer/netapi
+endif
 
 include $(RIOTBASE)/Makefile.base

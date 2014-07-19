@@ -52,6 +52,9 @@ endif
 ifneq (,$(filter net_if,$(USEMODULE)))
     DIRS += net/link_layer/net_if
 endif
+ifneq (,$(filter basic_mac,$(USEMODULE)))
+    DIRS += net/link_layer/basic_mac
+endif
 ifneq (,$(filter transport_layer,$(USEMODULE)))
 	USEMODULE += udp
 	USEMODULE += tcp

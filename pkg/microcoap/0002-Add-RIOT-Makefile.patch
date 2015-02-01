@@ -1,0 +1,23 @@
+From 71cedd4e553b05aedd34a43f0f06e264f8f159af Mon Sep 17 00:00:00 2001
+From: Martine Lenders <mail@martine-lenders.eu>
+Date: Sun, 1 Feb 2015 16:40:35 +0100
+Subject: [PATCH 2/2] Add RIOT Makefile
+
+---
+ Makefile | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 8412c58..48422e9 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,5 +1 @@
+-all:
+-	gcc -Wall -o coap endpoints.c main-posix.c coap.c -DDEBUG
+-
+-clean:
+-	rm -f coap
++include $(RIOTBASE)/Makefile.base
+-- 
+1.9.1
+

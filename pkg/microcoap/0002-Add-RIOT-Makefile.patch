@@ -1,4 +1,4 @@
-From 71cedd4e553b05aedd34a43f0f06e264f8f159af Mon Sep 17 00:00:00 2001
+From d0e72fd25ed6ab211e2c6cea31ef70f99de987f4 Mon Sep 17 00:00:00 2001
 From: Martine Lenders <mail@martine-lenders.eu>
 Date: Sun, 1 Feb 2015 16:40:35 +0100
 Subject: [PATCH 2/2] Add RIOT Makefile

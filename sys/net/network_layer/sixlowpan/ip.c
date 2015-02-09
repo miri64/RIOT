@@ -44,12 +44,12 @@ char addr_str[IPV6_MAX_ADDR_STR_LEN];
 #define LLHDR_IPV6HDR_LEN           (LL_HDR_LEN + IPV6_HDR_LEN)
 #define IPV6_NET_IF_ADDR_BUFFER_LEN (NET_IF_MAX * IPV6_NET_IF_ADDR_LIST_LEN)
 
-uint8_t ip_send_buffer[BUFFER_SIZE];
+static uint8_t ip_send_buffer[BUFFER_SIZE];
 uint8_t buffer[BUFFER_SIZE];
-msg_t ip_msg_queue[IP_PKT_RECV_BUF_SIZE];
-ipv6_hdr_t *ipv6_buf;
-icmpv6_hdr_t *icmp_buf;
-uint8_t *nextheader;
+static msg_t ip_msg_queue[IP_PKT_RECV_BUF_SIZE];
+static ipv6_hdr_t *ipv6_buf;
+static icmpv6_hdr_t *icmp_buf;
+static uint8_t *nextheader;
 
 kernel_pid_t udp_packet_handler_pid = KERNEL_PID_UNDEF;
 kernel_pid_t tcp_packet_handler_pid = KERNEL_PID_UNDEF;
@@ -282,6 +282,7 @@ int icmpv6_demultiplex(const icmpv6_hdr_t *hdr)
             if (_rpl_process_pid != KERNEL_PID_UNDEF) {
                 msg_t m_send;
                 m_send.content.ptr = (char *) ipv6_buf;
+                m_send.type = ((icmpv6_hdr_t *)(m_send.content.ptr + IPV6_HDR_LEN))->code;
                 msg_send(&m_send, _rpl_process_pid);
             }
             else {
@@ -863,13 +864,14 @@ void ipv6_register_next_header_handler(uint8_t next_header, kernel_pid_t pid)
             break;
     }
 }
-#ifdef MODULE_RPL
+
 /* register routing function */
 void ipv6_iface_set_routing_provider(ipv6_addr_t *(*next_hop)(ipv6_addr_t *dest))
 {
     ip_get_next_hop = next_hop;
 }
 
+#ifdef MODULE_RPL
 /* register source-routing indicator function */
 void ipv6_iface_set_srh_indicator(uint8_t (*srh_indi)(void))
 {

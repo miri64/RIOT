@@ -41,3 +41,12 @@ endif
 
 # Unwanted flags for c++
 CXXUWFLAGS += -std=%
+
+ifeq ($(LTO),yes)
+  LTOFLAGS = -flto -ffat-lto-objects
+  CFLAGS += ${LTOFLAGS}
+  LINKFLAGS += ${LTOFLAGS}
+endif
+
+# Forbid common symbols to prevent accidental aliasing.
+CFLAGS += -fno-common

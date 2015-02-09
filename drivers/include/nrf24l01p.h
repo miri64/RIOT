@@ -9,10 +9,11 @@
 /**
  * @defgroup    drivers_nrf24l01p NRF24L01+ Driver Interface
  * @ingroup     drivers
- * @{
  *
- * @file        
  * @brief       Low-level driver for nrf24l01+ transceiver
+ *
+ * @{
+ * @file
  *
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  * @author      Peter Kietzmann <peter.kietzmann@haw-hamburg.de>
@@ -416,7 +417,7 @@ int nrf24l01p_get_status(nrf24l01p_t *dev);
 * @return           1 on success.
 * @return           -1 on error.
 */
-int nrf24l01p_set_power(nrf24l01p_t *dev, int *pwr);
+int nrf24l01p_set_power(nrf24l01p_t *dev, int pwr);
 
 /**
 * @brief Get the transmit power for the nrf24l01+ transceiver device.

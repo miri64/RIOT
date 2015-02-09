@@ -18,9 +18,6 @@
  * @}
  */
 
-#include <string.h>
-#include "ipv6.h"
-
 #ifndef RPL_STRUCTS_H_INCLUDED
 #define RPL_STRUCTS_H_INCLUDED
 
@@ -28,10 +25,14 @@
 extern "C" {
 #endif
 
+#include <string.h>
+#include "ipv6.h"
+#include "trickle.h"
+
 /* Modes of Operation */
 
 /* DIO Base Object (RFC 6550 Fig. 14) */
-struct __attribute__((packed)) rpl_dio_t {
+typedef struct __attribute__((packed)) {
     uint8_t rpl_instanceid;
     uint8_t version_number;
     uint16_t rank;
@@ -40,34 +41,34 @@ struct __attribute__((packed)) rpl_dio_t {
     uint8_t flags;
     uint8_t reserved;
     ipv6_addr_t dodagid;
-};
+} rpl_dio_t;
 
-struct __attribute__((packed)) rpl_dis_t {
+typedef struct __attribute__((packed)) {
     uint8_t flags;
     uint8_t reserved;
-};
+} rpl_dis_t;
 
 /* DAO Base Object (RFC 6550 Fig. 16) */
-struct __attribute__((packed)) rpl_dao_t {
+typedef struct __attribute__((packed)) {
     uint8_t rpl_instanceid;
     uint8_t k_d_flags;
     uint8_t reserved;
     uint8_t dao_sequence;
-};
+} rpl_dao_t;
 
 /* DAO ACK Base Object (RFC 6550 Fig. 17.) */
-struct __attribute__((packed)) rpl_dao_ack_t {
+typedef struct __attribute__((packed)) {
     uint8_t rpl_instanceid;
     uint8_t d_reserved;
     uint8_t dao_sequence;
     uint8_t status;
-};
+} rpl_dao_ack_t;
 
 /* DODAG ID Struct */
 /* may be present in dao or dao_ack packets */
-struct __attribute__((packed)) dodag_id_t {
+typedef struct __attribute__((packed)) {
     ipv6_addr_t dodagid;
-};
+} dodag_id_t;
 
 /* RPL-Option Generic Format (RFC 6550 Fig. 19) */
 typedef struct __attribute__((packed)) {
@@ -167,6 +168,11 @@ typedef struct rpl_dodag_t {
     uint8_t joined;
     rpl_parent_t *my_preferred_parent;
     struct rpl_of_t *of;
+    trickle_t trickle;
+    bool ack_received;
+    uint8_t dao_counter;
+    timex_t dao_time;
+    vtimer_t dao_timer;
 } rpl_dodag_t;
 
 typedef struct rpl_of_t {

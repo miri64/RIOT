@@ -26,6 +26,6 @@ int _reboot_handler(int argc, char **argv)
     (void) argv;
 
     (void) reboot(RB_AUTOBOOT);
-    
+
     return 0;
 }

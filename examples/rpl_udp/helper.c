@@ -154,7 +154,7 @@ int rpl_udp_ignore(int argc, char **argv)
         a = atoi(argv[1]);
         printf("sending to transceiver (%u): %u\n", transceiver_pid, (*(uint8_t *)tcmd.data));
         msg_send(&mesg, transceiver_pid, 1);
-        
+
         return 0;
     }
     else {

@@ -73,7 +73,7 @@ int _cc110x_get_set_channel_handler(int argc, char **argv)
     }
     else {
         printf("[cc1100] Got address: %i\n", cc1100_get_channel());
-        
+
         return 0;
     }
 }

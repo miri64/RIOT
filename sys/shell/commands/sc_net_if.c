@@ -215,7 +215,7 @@ int _net_if_ifconfig_set_eui64(int if_id, char *eui64_str)
 
     net_if_hex_to_eui64(&eui64, eui64_str);
     net_if_set_eui64(if_id, &eui64);
-    
+
     return 0;
 }
 

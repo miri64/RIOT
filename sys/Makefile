@@ -128,6 +128,9 @@ endif
 ifneq (,$(filter ng_udp,$(USEMODULE)))
     DIRS += net/transport_layer/ng_udp
 endif
+ifneq (,$(filter ng_slip,$(USEMODULE)))
+    DIRS += net/link_layer/ng_slip
+endif
 
 DIRS += $(dir $(wildcard $(addsuffix /Makefile, ${USEMODULE})))
 

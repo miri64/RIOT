@@ -1,0 +1,285 @@
+/*
+ * Copyright (C) 2015 Martine Lenders <mlenders@inf.fu-berlin.de>
+ *
+ * This file is subject to the terms and conditions of the GNU Lesser
+ * General Public License v2.1. See the file LICENSE in the top level
+ * directory for more details.
+ */
+
+/**
+ * @{
+ *
+ * @file
+ */
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "kernel.h"
+#include "kernel_types.h"
+#include "msg.h"
+#include "net/ng_netbase.h"
+#include "periph/uart.h"
+#include "ringbuffer.h"
+#include "thread.h"
+#include "net/ng_ipv6/hdr.h"
+
+#include "net/ng_slip.h"
+
+#define ENABLE_DEBUG    (0)
+#include "debug.h"
+
+#if UART_NUMOF
+#define _SLIP_END         ('\xc0')
+#define _SLIP_ESC         ('\xdb')
+#define _SLIP_END_ESC     ('\xdc')
+#define _SLIP_ESC_ESC     ('\xdd')
+
+#define _SLIP_MSG_TYPE          (0xc1dc)    /* chosen randomly */
+#define _SLIP_STACK_SIZE        (KERNEL_CONF_STACKSIZE_DEFAULT)
+#define _SLIP_NAME              "SLIP"
+#define _SLIP_MSG_QUEUE_SIZE    (8U)
+
+#define _SLIP_DEV(arg)    ((ng_slip_dev_t *)arg)
+
+static char _slip_stack[_SLIP_STACK_SIZE];
+
+/* UART callbacks */
+static void _slip_rx_cb(void *arg, char data)
+{
+    if (data == _SLIP_END) {
+        msg_t msg;
+
+        msg.type = _SLIP_MSG_TYPE;
+        msg.content.value = _SLIP_DEV(arg)->in_bytes;
+
+        msg_send_int(&msg, _SLIP_DEV(arg)->slip_pid);
+
+        _SLIP_DEV(arg)->in_bytes = 0;
+    }
+
+    if (_SLIP_DEV(arg)->in_esc) {
+        _SLIP_DEV(arg)->in_esc = 0;
+
+        switch (data) {
+            case (_SLIP_END_ESC):
+                if (ringbuffer_add_one(_SLIP_DEV(arg)->in_buf, _SLIP_END) < 0) {
+                    _SLIP_DEV(arg)->in_bytes++;
+                }
+
+                break;
+
+            case (_SLIP_ESC_ESC):
+                if (ringbuffer_add_one(_SLIP_DEV(arg)->in_buf, _SLIP_ESC) < 0) {
+                    _SLIP_DEV(arg)->in_bytes++;
+                }
+
+                break;
+
+            default:
+                break;
+        }
+    }
+    else if (data == _SLIP_ESC) {
+        _SLIP_DEV(arg)->in_esc = 1;
+    }
+    else {
+        if (ringbuffer_add_one(_SLIP_DEV(arg)->in_buf, data) < 0) {
+            _SLIP_DEV(arg)->in_bytes++;
+        }
+    }
+}
+
+int _slip_tx_cb(void *arg)
+{
+    if (_SLIP_DEV(arg)->out_buf->avail > 0) {
+        char c = (char)ringbuffer_get_one(_SLIP_DEV(arg)->out_buf);
+        uart_write((uart_t)(_SLIP_DEV(arg)->uart), c);
+        return 1;
+    }
+
+    return 0;
+}
+
+/* SLIP receive handler */
+static void _slip_receive(ng_slip_dev_t *dev, size_t bytes)
+{
+    ng_netif_hdr_t *hdr;
+    ng_netreg_entry_t *sendto;
+    ng_pktsnip_t *pkt, *netif_hdr;
+
+    pkt = ng_pktbuf_add(NULL, NULL, bytes, NG_NETTYPE_UNDEF);
+
+    if (pkt == NULL) {
+        DEBUG("slip: no space left in packet buffer\n");
+        return;
+    }
+
+    netif_hdr = ng_pktbuf_add(pkt, NULL, sizeof(ng_netif_hdr_t),
+                              NG_NETTYPE_NETIF);
+
+    if (netif_hdr == NULL) {
+        DEBUG("slip: no space left in packet buffer\n");
+        ng_pktbuf_release(pkt);
+        return;
+    }
+
+    hdr = netif_hdr->data;
+    ng_netif_hdr_init(hdr, 0, 0);
+    hdr->if_pid = thread_getpid();
+
+    if (ringbuffer_get(dev->in_buf, pkt->data, bytes) != bytes) {
+        DEBUG("slip: could not read %zu bytes from ringbuffer\n", bytes);
+        ng_pktbuf_release(pkt);
+        return;
+    }
+
+#ifdef MODULE_NG_IPV6
+    if ((pkt->size >= sizeof(ng_ipv6_hdr_t)) && ng_ipv6_hdr_is_ipv6_hdr(pkt->data)) {
+        pkt->type = NG_NETTYPE_IPV6;
+    }
+#endif
+
+    sendto = ng_netreg_lookup(pkt->type, NG_NETREG_DEMUX_CTX_ALL);
+
+    if (sendto == NULL) {
+        DEBUG("slip: unable to forward packet of type %i\n", pkt->type);
+        ng_pktbuf_release(pkt);
+    }
+
+    ng_pktbuf_hold(pkt, ng_netreg_num(pkt->type, NG_NETREG_DEMUX_CTX_ALL) - 1);
+
+    while (sendto != NULL) {
+        DEBUG("slip: sending pkt %p to PID %u\n", pkt, sendto->pid);
+        ng_netapi_receive(sendto->pid, pkt);
+        sendto = ng_netreg_getnext(sendto);
+    }
+}
+
+static inline void _slip_send_char(ng_slip_dev_t *dev, char c)
+{
+    ringbuffer_add_one(dev->out_buf, c);
+    uart_tx_begin(dev->uart);
+}
+
+/* SLIP send handler */
+static void _slip_send(ng_slip_dev_t *dev, ng_pktsnip_t *pkt)
+{
+    ng_pktsnip_t *ptr;
+
+    ptr = pkt->next;    /* ignore ng_netif_hdr_t, we don't need it */
+
+    while (ptr != NULL) {
+        DEBUG("slip: send pktsnip of length %zu over UART_%d\n", ptr->size, uart);
+        char *data = ptr->data;
+
+        for (size_t i = 0; i < ptr->size; i++) {
+            switch (data[i]) {
+                case _SLIP_END:
+                    DEBUG("slip: encountered END byte on send: stuff with ESC\n");
+                    _slip_send_char(dev, _SLIP_ESC);
+                    _slip_send_char(dev, _SLIP_END_ESC);
+                    break;
+
+                case _SLIP_ESC:
+                    DEBUG("slip: encountered ESC byte on send: stuff with ESC\n");
+                    _slip_send_char(dev, _SLIP_ESC);
+                    _slip_send_char(dev, _SLIP_ESC_ESC);
+                    break;
+
+                default:
+                    _slip_send_char(dev, data[i]);
+
+                    break;
+            }
+        }
+
+        ptr = ptr->next;
+    }
+
+    _slip_send_char(dev, _SLIP_END);
+
+    ng_pktbuf_release(pkt);
+}
+
+void *_slip(void *args)
+{
+    ng_slip_dev_t *dev = _SLIP_DEV(args);
+    msg_t msg, reply, msg_q[_SLIP_STACK_SIZE];
+
+    msg_init_queue(msg_q, _SLIP_STACK_SIZE);
+    ng_netif_add(thread_getpid());
+
+    DEBUG("slip: SLIP runs on UART_%d\n", uart);
+
+    while (1) {
+        DEBUG("slip: waiting for incoming messages\n");
+        msg_receive(&msg);
+
+        switch (msg.type) {
+            case _SLIP_MSG_TYPE:
+                DEBUG("slip: incoming message from UART in buffer\n");
+                _slip_receive(dev, (size_t)msg.content.value);
+                break;
+
+            case NG_NETAPI_MSG_TYPE_SND:
+                DEBUG("slip: NG_NETAPI_MSG_TYPE_SND received\n");
+                _slip_send(dev, (ng_pktsnip_t *)msg.content.ptr);
+                break;
+
+            case NG_NETAPI_MSG_TYPE_GET:
+            case NG_NETAPI_MSG_TYPE_SET:
+                DEBUG("slip: NG_NETAPI_MSG_TYPE_GET or NG_NETAPI_MSG_TYPE_SET received\n");
+                reply.type = NG_NETAPI_MSG_TYPE_ACK;
+                reply.content.value = (uint32_t)(-ENOTSUP);
+                DEBUG("slip: I don't support these but have to reply.\n");
+                msg_reply(&msg, &reply);
+                break;
+        }
+    }
+}
+
+kernel_pid_t ng_slip_init(char priority, ng_slip_dev_t *dev, uint32_t baudrate)
+{
+    kernel_pid_t res;
+
+    if ((dev->uart < UART_0) || (dev->uart >= UART_NUMOF)) {
+        DEBUG("slip: dev->uart == %i is no valid UART\n", uart);
+        return -ENODEV;
+    }
+
+    if ((dev->in_buf == NULL) || (dev->out_buf == NULL)) {
+        DEBUG("slip: dev->in_buf or dev->out_buf was NULL\n");
+        return -EFAULT;
+    }
+
+    dev->in_bytes = 0;
+    dev->in_esc = 0;
+
+    res = thread_create(_slip_stack, _SLIP_STACK_SIZE, priority, CREATE_STACKTEST,
+                        _slip, dev, _SLIP_NAME);
+    DEBUG("slip: started SLIP thread: %d\n", res);
+
+    DEBUG("slip: initialize UART_%d\n", uart);
+    uart_init(dev->uart, baudrate, _slip_rx_cb, _slip_tx_cb, dev);
+
+    if (res > 0) {
+        dev->slip_pid = res;
+    }
+
+    return res;
+}
+
+#else   /* UART_NUMOF */
+kernel_pid_t ng_slip_init(char priority, ng_slip_dev_t *dev, uint32_t baudrate)
+{
+    (void)priority;
+    (void)uart;
+    (void)baudrate;
+    return -ENOTSUP;
+}
+#endif  /* UART_NUMOF */
+
+/** @} */

@@ -1,18 +1,28 @@
-APPLICATION = driver_tapnet
+APPLICATION = driver_slip
 include ../Makefile.tests_common
 
 FEATURES_REQUIRED = periph_uart
 
 RD_INSUFFICIENT_RAM := stm32f0discovery
 
-# other boards are missing second UART
-BOARD_WHITELIST := arduino-due mbed_lpc1768 msbiot nucleo-f091 \
-                   stm32f0discovery stm32f3discovery stm32f4discovery udoo
-
 USEMODULE += ng_netbase
 USEMODULE += ng_pktdump
 USEMODULE += ng_slip
 USEMODULE += shell
 USEMODULE += shell_commands
+USEMODULE += uart0
+
+ifneq (,$(SLIP_UART))
+  CFLAGS += -DSLIP_UART=$(SLIP_UART)
+else
+  # set default
+  CFLAGS += -DSLIP_UART=UART_0
+endif
+ifneq (,$(SLIP_BAUDRATE))
+  CFLAGS += -DSLIP_BAUDRATE=$(SLIP_BAUDRATE)
+else
+  # set default
+  CFLAGS += -DSLIP_BAUDRATE=115200
+endif
 
 include $(RIOTBASE)/Makefile.include

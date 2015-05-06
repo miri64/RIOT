@@ -7,9 +7,16 @@
  */
 
 /**
+ * @ingroup     net_ng_slip
  * @{
  *
  * @file
+ * @brief       SLIP device implementation
+ *
+ * @author      Martine Lenders <mlenders@inf.fu-berlin.de>
+ * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
+ *
+ * @}
  */
 
 #include <stdbool.h>
@@ -32,19 +39,16 @@
 #include "debug.h"
 
 #if UART_NUMOF
-#define _SLIP_END         ('\xc0')
-#define _SLIP_ESC         ('\xdb')
-#define _SLIP_END_ESC     ('\xdc')
-#define _SLIP_ESC_ESC     ('\xdd')
+#define _SLIP_END               ('\xc0')
+#define _SLIP_ESC               ('\xdb')
+#define _SLIP_END_ESC           ('\xdc')
+#define _SLIP_ESC_ESC           ('\xdd')
 
 #define _SLIP_MSG_TYPE          (0xc1dc)    /* chosen randomly */
-#define _SLIP_STACK_SIZE        (KERNEL_CONF_STACKSIZE_DEFAULT)
 #define _SLIP_NAME              "SLIP"
 #define _SLIP_MSG_QUEUE_SIZE    (8U)
 
 #define _SLIP_DEV(arg)    ((ng_slip_dev_t *)arg)
-
-static char _slip_stack[_SLIP_STACK_SIZE];
 
 /* UART callbacks */
 static void _slip_rx_cb(void *arg, char data)
@@ -204,13 +208,14 @@ static void _slip_send(ng_slip_dev_t *dev, ng_pktsnip_t *pkt)
     ng_pktbuf_release(pkt);
 }
 
-void *_slip(void *args)
+static void *_slip(void *args)
 {
     ng_slip_dev_t *dev = _SLIP_DEV(args);
-    msg_t msg, reply, msg_q[_SLIP_STACK_SIZE];
+    msg_t msg, reply, msg_q[_SLIP_MSG_QUEUE_SIZE];
 
-    msg_init_queue(msg_q, _SLIP_STACK_SIZE);
-    ng_netif_add(thread_getpid());
+    msg_init_queue(msg_q, _SLIP_MSG_QUEUE_SIZE);
+    dev->slip_pid = thread_getpid();
+    ng_netif_add(dev->slip_pid);
 
     DEBUG("slip: SLIP runs on UART_%d\n", uart);
 
@@ -239,47 +244,57 @@ void *_slip(void *args)
                 break;
         }
     }
+
+    /* should be never reached */
+    return NULL;
 }
 
-kernel_pid_t ng_slip_init(char priority, ng_slip_dev_t *dev, uint32_t baudrate)
+kernel_pid_t ng_slip_init(ng_slip_dev_t *dev, uart_t uart, uint32_t baudrate,
+                          char *stack, size_t stack_size, char priority)
 {
-    kernel_pid_t res;
+    int res;
+    kernel_pid_t pid;
 
-    if ((dev->uart < UART_0) || (dev->uart >= UART_NUMOF)) {
-        DEBUG("slip: dev->uart == %i is no valid UART\n", uart);
+    /* reset device descriptor fields */
+    dev->in_bytes = 0;
+    dev->in_esc = 0;
+    dev->slip_pid = KERNEL_PID_UNDEF;
+
+    /* initialize buffers */
+    ringbuffer_init(dev->in_buf, dev->rx_mem, sizeof(dev->rx_mem));
+    ringbuffer_init(dev->out_buf, dev->tx_mem, sizeof(dev->tx_mem));
+
+    /* initialize UART */
+    DEBUG("slip: initialize UART_%d\n", uart);
+    res = uart_init(uart, baudrate, _slip_rx_cb, _slip_tx_cb, dev);
+    if (res < 0) {
+        DEBUG("slip: error initializing UART_%i with baudrate %u\n",
+              uart, baudrate);
         return -ENODEV;
     }
 
-    if ((dev->in_buf == NULL) || (dev->out_buf == NULL)) {
-        DEBUG("slip: dev->in_buf or dev->out_buf was NULL\n");
+    /* start SLIP thread */
+    DEBUG("slip: starting SLIP thread\n");
+    pid = thread_create(stack, stack_size, priority, CREATE_STACKTEST,
+                        _slip, dev, _SLIP_NAME);
+    if (pid < 0) {
+        DEBUG("slip: unable to create SLIP thread\n");
         return -EFAULT;
     }
-
-    dev->in_bytes = 0;
-    dev->in_esc = 0;
-
-    res = thread_create(_slip_stack, _SLIP_STACK_SIZE, priority, CREATE_STACKTEST,
-                        _slip, dev, _SLIP_NAME);
-    DEBUG("slip: started SLIP thread: %d\n", res);
-
-    DEBUG("slip: initialize UART_%d\n", uart);
-    uart_init(dev->uart, baudrate, _slip_rx_cb, _slip_tx_cb, dev);
-
-    if (res > 0) {
-        dev->slip_pid = res;
-    }
-
     return res;
 }
 
 #else   /* UART_NUMOF */
-kernel_pid_t ng_slip_init(char priority, ng_slip_dev_t *dev, uint32_t baudrate)
+kernel_pid_t ng_slip_init(ng_slip_dev_t *dev, uart_t uart, uint32_t baudrate,
+                          char *stack, size_t stack_size, char priority);
 {
-    (void)priority;
+    (void)dev;
     (void)uart;
     (void)baudrate;
+    (void)stack;
+    (void)stack_size;
+    (void)priority;
+
     return -ENOTSUP;
 }
 #endif  /* UART_NUMOF */
-
-/** @} */

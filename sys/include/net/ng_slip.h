@@ -34,13 +34,6 @@
 extern "C" {
 #endif
 
-#if !UART_NUMOF
-/**
- * @brief   Guard type for boards that do not implement @ref driver_periph_uart
- */
-typedef uint8_t uart_t;
-#endif
-
 /**
  * @brief   UART buffer size used for TX and RX buffers
  *
@@ -80,7 +73,6 @@ typedef struct {
  * @return  PID of SLIP thread on success
  * @return  -EFAULT, if slip thread could not be created
  * @return  -ENODEV, if slip_dev_t::uart of @p dev was no valid UART
- * @return  -ENOTSUP, if board does not implement @ref driver_periph_uart
  */
 kernel_pid_t ng_slip_init(ng_slip_dev_t *dev, uart_t uart, uint32_t baudrate,
                           char *stack, size_t stack_size, char priority);

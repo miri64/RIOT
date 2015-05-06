@@ -1,7 +1,7 @@
 APPLICATION = driver_slip
 include ../Makefile.tests_common
 
-FEATURES_REQUIRED = periph_uart
+
 
 RD_INSUFFICIENT_RAM := stm32f0discovery
 

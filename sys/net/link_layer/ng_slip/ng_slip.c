@@ -38,7 +38,6 @@
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
 
-#if UART_NUMOF
 #define _SLIP_END               ('\xc0')
 #define _SLIP_ESC               ('\xdb')
 #define _SLIP_END_ESC           ('\xdc')
@@ -283,18 +282,3 @@ kernel_pid_t ng_slip_init(ng_slip_dev_t *dev, uart_t uart, uint32_t baudrate,
     }
     return res;
 }
-
-#else   /* UART_NUMOF */
-kernel_pid_t ng_slip_init(ng_slip_dev_t *dev, uart_t uart, uint32_t baudrate,
-                          char *stack, size_t stack_size, char priority);
-{
-    (void)dev;
-    (void)uart;
-    (void)baudrate;
-    (void)stack;
-    (void)stack_size;
-    (void)priority;
-
-    return -ENOTSUP;
-}
-#endif  /* UART_NUMOF */

@@ -9,9 +9,10 @@
 #ifndef _SEMAPHORE_H
 #define _SEMAPHORE_H    1
 
+#include <errno.h>
 #include <time.h>
 
-#include "priority_queue.h"
+#include "sem.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,30 +22,13 @@ extern "C" {
 #define SEM_FAILED      ((sem_t *) 0)
 
 /**
- * @brief Semaphore struct
- */
-typedef struct sem {
-    /** the value of the semaphore */
-    volatile unsigned int value;
-    /** list of threads waiting for the semaphore */
-    priority_queue_t queue;
-} sem_t;
-
-/**
  * @brief Initialize semaphore object SEM to VALUE.
  *
  * @param sem Semaphore to initialize
  * @param pshared unused
  * @param value Value to set
  */
-int sem_init(sem_t *sem, int pshared, unsigned int value);
-
-/**
- * @brief Free resources associated with semaphore object SEM.
- *
- * @param sem Semaphore to destroy
- */
-int sem_destroy(sem_t *sem);
+#define sem_init(sem, pshared, value)   sem_create(sem, value)
 
 /*
  * @brief Open a named semaphore NAME with open flags OFLAG.
@@ -54,7 +38,7 @@ int sem_destroy(sem_t *sem);
  * @param name Name to set
  * @param oflag Flags to set
  */
-sem_t *sem_open(const char *name, int oflag, ...);
+#define sem_open(name, oflag, ...)      (SEM_FAILED)
 
 /**
  * @brief Close descriptor for named semaphore SEM.
@@ -63,7 +47,7 @@ sem_t *sem_open(const char *name, int oflag, ...);
  *
  * @param sem Semaphore to close
  */
-int sem_close(sem_t *sem);
+#define sem_close(sem)                  (-1)
 
 /**
  * @brief Remove named semaphore NAME.
@@ -72,14 +56,7 @@ int sem_close(sem_t *sem);
  *
  * @param name Name to unlink
  */
-int sem_unlink(const char *name);
-
-/**
- * @brief Wait for SEM being posted.
- *
- * @param sem Semaphore to wait
- */
-int sem_wait(sem_t *sem);
+#define sem_unlink(name)                (-1)
 
 /**
  * @brief Similar to `sem_wait' but wait only until ABSTIME.
@@ -90,7 +67,7 @@ int sem_wait(sem_t *sem);
  * @param abstime Max time to wait for a post
  *
  */
-int sem_timedwait(sem_t *sem, const struct timespec *abstime);
+static inline int sem_timedwait(sem_t *sem, const struct timespec *abstime);
 
 /**
  * @brief Test whether SEM is posted.
@@ -101,19 +78,19 @@ int sem_timedwait(sem_t *sem, const struct timespec *abstime);
 int sem_trywait(sem_t *sem);
 
 /**
- * @brief Post SEM.
- *
- * @param sem Semaphore to post on
- */
-int sem_post(sem_t *sem);
-
-/**
  * @brief Get current value of SEM and store it in *SVAL.
  *
  * @param sem Semaphore to get value from
  * @param sval place whre value goes to
  */
-int sem_getvalue(sem_t *sem, int *sval);
+static inline int sem_getvalue(sem_t *sem, int *sval)
+{
+    if (sem != NULL) {
+        *sval = (int)sem->value;
+        return 0;
+    }
+    return -EINVAL;
+}
 
 #ifdef __cplusplus
 }

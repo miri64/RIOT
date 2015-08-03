@@ -245,6 +245,7 @@ ifneq (,$(filter uart0,$(USEMODULE)))
 endif
 
 ifneq (,$(filter posix,$(USEMODULE)))
+  USEMODULE += sem
   USEMODULE += timex
   USEMODULE += vtimer
 endif

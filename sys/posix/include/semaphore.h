@@ -64,7 +64,7 @@ extern "C" {
  * @brief WARNING: currently not supported
  *
  * @param sem Semaphore to wait on
- * @param abstime Max time to wait for a post
+ * @param abstime Absolute time until to wait
  *
  */
 int sem_timedwait(sem_t *sem, const struct timespec *abstime);

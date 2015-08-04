@@ -35,14 +35,14 @@
 
 #include "semaphore.h"
 
-#define USEC_IN_NS  (100)
+#define USEC_IN_NS  (1000)
 
 int sem_timedwait(sem_t *sem, const struct timespec *abstime)
 {
     timex_t now, timeout = { abstime->tv_sec, abstime->tv_nsec / USEC_IN_NS };
     vtimer_now(&now);
     if (timex_cmp(now, timeout) > 0) {
-        return sem_wait(sem);
+        return sem_wait_timed(sem, NULL);
     }
     timeout = timex_sub(timeout, now);
     return sem_wait_timed(sem, &timeout);

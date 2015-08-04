@@ -124,12 +124,15 @@ int sem_post(sem_t *sem)
     ++sem->value;
     next = priority_queue_remove_head(&sem->queue);
     if (next) {
+        uint16_t prio = (uint16_t)next->priority;
         kernel_pid_t pid = (kernel_pid_t) next->data;
         msg_t msg;
         DEBUG("sem_post: %" PRIkernel_pid ": waking up %" PRIkernel_pid "\n",
               sched_active_thread->pid, next_process->pid);
         msg.type = _MSG_SIGNAL;
         msg_send_int(&msg, pid);
+        restoreIRQ(old_state);
+        sched_switch(prio);
     }
     else {
         restoreIRQ(old_state);

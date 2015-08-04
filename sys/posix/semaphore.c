@@ -68,9 +68,3 @@ int sem_trywait(sem_t *sem)
     restoreIRQ(old_state);
     return result;
 }
-
-int sem_getvalue(sem_t *sem, int *sval)
-{
-    *sval = sem->value;
-    return 0;
-}

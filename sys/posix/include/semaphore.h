@@ -67,7 +67,7 @@ extern "C" {
  * @param abstime Max time to wait for a post
  *
  */
-static inline int sem_timedwait(sem_t *sem, const struct timespec *abstime);
+int sem_timedwait(sem_t *sem, const struct timespec *abstime);
 
 /**
  * @brief Test whether SEM is posted.

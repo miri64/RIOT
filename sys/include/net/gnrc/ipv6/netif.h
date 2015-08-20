@@ -28,6 +28,7 @@
 #include "kernel_macros.h"
 #include "kernel_types.h"
 #include "mutex.h"
+#include "net/ipv6.h"
 #include "net/ipv6/addr.h"
 #include "vtimer.h"
 
@@ -49,13 +50,11 @@ extern "C" {
 #endif
 
 /**
- * @brief   Default MTU
- *
- * @see <a href="https://tools.ietf.org/html/rfc2460#section-5">
- *          RFC 2460, section 5
- *      </a>
+ * @brief   Default MTU (must be at least @ref IPV6_MIN_MTU)
  */
-#define GNRC_IPV6_NETIF_DEFAULT_MTU (1280)
+#ifndef GNRC_IPV6_NETIF_DEFAULT_MTU
+#define GNRC_IPV6_NETIF_DEFAULT_MTU (IPV6_MIN_MTU)
+#endif
 
 /**
  * @brief   Default hop limit

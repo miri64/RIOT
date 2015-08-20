@@ -369,6 +369,12 @@ static void _send_multicast(kernel_pid_t iface, gnrc_pktsnip_t *pkt,
         gnrc_pktbuf_hold(pkt, ifnum - 1);
 
         for (size_t i = 0; i < ifnum; i++) {
+            if (gnrc_pkt_len(ipv6) > gnrc_ipv6_netif_get(ifs[i])->mtu) {
+                DEBUG("ipv6: packet too big\n");
+                gnrc_pktbuf_release(pkt);
+                continue;
+            }
+
             if (prep_hdr) {
                 /* need to get second write access (duplication) to fill IPv6
                  * header interface-local */
@@ -404,6 +410,12 @@ static void _send_multicast(kernel_pid_t iface, gnrc_pktsnip_t *pkt,
         }
     }
     else {
+        if (gnrc_pkt_len(ipv6) > gnrc_ipv6_netif_get(iface)->mtu) {
+            DEBUG("ipv6: packet too big\n");
+            gnrc_pktbuf_release(pkt);
+            return;
+        }
+
         /* iface != KERNEL_PID_UNDEF implies that netif header is present */
         if (prep_hdr) {
             if (_fill_ipv6_hdr(iface, ipv6, payload) < 0) {
@@ -436,6 +448,12 @@ static void _send_multicast(kernel_pid_t iface, gnrc_pktsnip_t *pkt,
     }
     else {
         netif = pkt;
+    }
+
+    if (gnrc_pkt_len(ipv6) > gnrc_ipv6_netif_get(iface)->mtu) {
+        DEBUG("ipv6: packet too big\n");
+        gnrc_pktbuf_release(pkt);
+        return;
     }
 
     if (prep_hdr) {
@@ -557,6 +575,12 @@ static void _send(gnrc_pktsnip_t *pkt, bool prep_hdr)
 
         if (iface == KERNEL_PID_UNDEF) {
             DEBUG("ipv6: error determining next hop's link layer address\n");
+            gnrc_pktbuf_release(pkt);
+            return;
+        }
+
+        if (gnrc_pkt_len(ipv6) > gnrc_ipv6_netif_get(iface)->mtu) {
+            DEBUG("ipv6: packet too big\n");
             gnrc_pktbuf_release(pkt);
             return;
         }

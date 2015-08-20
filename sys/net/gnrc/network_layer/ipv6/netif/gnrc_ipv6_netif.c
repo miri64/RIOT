@@ -748,6 +748,8 @@ void gnrc_ipv6_netif_init_by_dev(void)
             if (mtu >= IPV6_MIN_MTU) {
                 ipv6_if->mtu = mtu;
             }
+            /* otherwise leave at GNRC_IPV6_NETIF_DEFAULT_MTU as initialized in
+             * gnrc_ipv6_netif_add() */
         }
 
         mutex_unlock(&ipv6_if->mutex);

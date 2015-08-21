@@ -63,24 +63,51 @@ int sem_destroy(sem_t *sem);
  *
  * @pre Message queue of active thread is initialized (see @ref msg_init_queue()).
  *
- * @param[in] sem       A semaphore.
- * @param[in] timeout   Time until the semaphore times out. NULL for no timeout.
+ * @param[in]  sem      A semaphore.
+ * @param[in]  timeout  Time until the semaphore times out. NULL for no timeout.
+ * @param[out] msg      Container for a spurious message during the timed wait (result == -EAGAIN).
  *
  * @return  0 on success
  * @return  -EINVAL, if semaphore is invalid.
  * @return  -ETIMEDOUT, if the semaphore times out.
- * @return  -ECANCELED, if the semaphore was destroyed or landed in an undefined
- *          state.
+ * @return  -ECANCELED, if the semaphore was destroyed.
+ * @return  -EAGAIN, if the thread received a message while waiting for the lock.
+ */
+int sem_wait_timed_msg(sem_t *sem, timex_t *timeout, msg_t *msg);
+
+/**
+ * @brief   Wait for a semaphore being posted (without timeout).
+ * @see     sem_wait_timed_msg()
+ *
+ * @param[in]  sem  A semaphore.
+ * @param[out] msg  Container for a spurious message during the timed wait (result == -EAGAIN).
+ *
+ * @return  See sem_wait_timed().
+ */
+static inline int sem_wait_msg(sem_t *sem, msg_t *msg)
+{
+    return sem_wait_timed_msg(sem, NULL, msg);
+}
+
+/**
+ * @brief   Wait for a semaphore being posted (dropping spurious messages).
+ * @see     sem_wait_timed_msg()
+ * @details Any spurious messages received while waiting for the semaphore are silently dropped.
+ *
+ * @param[in]  sem      A semaphore.
+ * @param[in]  timeout  Time until the semaphore times out. NULL for no timeout.
+ *
+ * @return  See sem_wait_timed_msg(), but for -EAGAIN.
  */
 int sem_wait_timed(sem_t *sem, timex_t *timeout);
 
 /**
- * @brief   Wait for a semaphore being posted (without timeout).
+ * @brief   Wait for a semaphore being posted (without timeout, dropping spurious messages).
+ * @see     sem_wait_timed()
  *
- * @param[in] sem   A semaphore.
+ * @param[in]  sem  A semaphore.
  *
- * @return  0 on success
- * @return  -EINVAL, if semaphore is invalid.
+ * @return  See sem_wait_timed(), but for -EAGAIN.
  */
 static inline int sem_wait(sem_t *sem)
 {

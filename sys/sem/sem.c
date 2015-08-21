@@ -26,9 +26,9 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-#define _MSG_SIGNAL         (0x0501)
-#define _MSG_TIMEOUT        (0x0502)
-#define _MSG_DESTROYED      (0x0503)
+#define MSG_SIGNAL         (0x0501)
+#define MSG_TIMEOUT        (0x0502)
+#define MSG_DESTROYED      (0x0503)
 
 int sem_create(sem_t *sem, unsigned int value)
 {
@@ -49,28 +49,26 @@ int sem_destroy(sem_t *sem)
         return -EINVAL;
     }
     old_state = disableIRQ();
-    next = priority_queue_remove_head(&sem->queue);
-    while (next) {
+    while ((next = priority_queue_remove_head(&sem->queue)) != NULL) {
         msg_t msg;
         kernel_pid_t pid = (kernel_pid_t)next->data;
-        msg.type = _MSG_DESTROYED;
+        msg.type = MSG_DESTROYED;
+        msg.content.ptr = (void *) sem;
         msg_send_int(&msg, pid);
     }
     restoreIRQ(old_state);
     return 0;
 }
 
-int sem_wait_timed(sem_t *sem, timex_t *timeout)
+int sem_wait_timed_msg(sem_t *sem, timex_t *timeout, msg_t *msg)
 {
     if (sem == NULL) {
         return -EINVAL;
     }
-    assert(sched_active_thread->msg_array != NULL);
     while (1) {
         unsigned old_state = disableIRQ();
         priority_queue_node_t n;
         vtimer_t timeout_timer;
-        msg_t msg;
 
         unsigned value = sem->value;
         if (value != 0) {
@@ -90,22 +88,43 @@ int sem_wait_timed(sem_t *sem, timex_t *timeout)
 
         if (timeout != NULL) {
             vtimer_set_msg(&timeout_timer, *timeout, sched_active_pid,
-                           _MSG_TIMEOUT, sem);
+                           MSG_TIMEOUT, sem);
         }
 
         restoreIRQ(old_state);
-        msg_receive(&msg);
-        vtimer_remove(&timeout_timer);  /* remove timer just to be sure */
-        switch (msg.type) {
-            case _MSG_SIGNAL:
+        msg_receive(msg);
+
+        if (timeout != NULL) {
+            vtimer_remove(&timeout_timer);  /* remove timer just to be sure */
+        }
+
+        if (msg->content.ptr != (void *) sem) {
+            return -EAGAIN;
+        }
+
+        switch (msg->type) {
+            case MSG_SIGNAL:
                 continue;
-            case _MSG_TIMEOUT:
+            case MSG_TIMEOUT:
                 return -ETIMEDOUT;
-            case _MSG_DESTROYED:
-            default:
+            case MSG_DESTROYED:
                 return -ECANCELED;
+            default:
+                return -EAGAIN;
         }
     }
+}
+
+int sem_wait_timed(sem_t *sem, timex_t *timeout)
+{
+    int result;
+    do {
+        msg_t msg;
+        result = sem_wait_timed_msg(sem, timeout, &msg);
+        DEBUG("sem_wait: %" PRIkernel_pid ": Discarding message from %" PRIkernel_pid "\n",
+              sched_active_thread->pid, msg->sender_pid);
+    } while (result == -EAGAIN);
+    return result;
 }
 
 int sem_post(sem_t *sem)
@@ -129,7 +148,8 @@ int sem_post(sem_t *sem)
         msg_t msg;
         DEBUG("sem_post: %" PRIkernel_pid ": waking up %" PRIkernel_pid "\n",
               sched_active_thread->pid, next_process->pid);
-        msg.type = _MSG_SIGNAL;
+        msg.type = MSG_SIGNAL;
+        msg.content.ptr = (void *) sem;
         msg_send_int(&msg, pid);
         restoreIRQ(old_state);
         sched_switch(prio);

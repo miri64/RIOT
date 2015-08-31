@@ -50,16 +50,16 @@ static void _stale_nc(kernel_pid_t iface, ipv6_addr_t *ipaddr, uint8_t *l2addr,
 {
     if (l2addr_len != -ENOTSUP) {
         gnrc_ipv6_nc_t *nc_entry = gnrc_ipv6_nc_get(iface, ipaddr);
-        if ((nc_entry != NULL) && (((uint16_t)l2addr_len != nc_entry->l2_addr_len) ||
-                                   (memcmp(l2addr, nc_entry->l2_addr, l2addr_len) != 0))) {
+        if (nc_entry == NULL) {
+            gnrc_ipv6_nc_add(iface, ipaddr, l2addr, (uint16_t)l2addr_len,
+                             GNRC_IPV6_NC_STATE_STALE);
+        }
+        else if (((uint16_t)l2addr_len != nc_entry->l2_addr_len) ||
+                 (memcmp(l2addr, nc_entry->l2_addr, l2addr_len) != 0)) {
             /* if entry exists but l2 address differs: set */
             nc_entry->l2_addr_len = (uint16_t)l2addr_len;
             memcpy(nc_entry->l2_addr, l2addr, l2addr_len);
             gnrc_ndp_internal_set_state(nc_entry, GNRC_IPV6_NC_STATE_STALE);
-        }
-        else if (nc_entry == NULL) {
-            gnrc_ipv6_nc_add(iface, ipaddr, l2addr, (uint16_t)l2addr_len,
-                             GNRC_IPV6_NC_STATE_STALE);
         }
     }
 }

@@ -256,23 +256,23 @@ typedef struct {
     /**
      * @brief   Maximum time in seconds between sending unsolicited multicast
      *          router advertisements. Must be between 4 and 1800 seconds.
-     *          The default value is @ref GNRC_NDP_NETIF_MAX_ADV_INT_DEFAULT.
+     *          The default value is @ref GNRC_IPV6_NETIF_MAX_ADV_INT_DEFAULT.
      */
     uint16_t max_adv_int;
 
     /**
      * @brief   Minimum time in seconds between sending unsolicited multicast
      *          router advertisements. Must be between 3 and
-     *          3/4 * ng_ipv6_netif_t::max_rtr_adv_int seconds.
-     *          The default value is @ref GNRC_NDP_NETIF_MIN_ADV_INT_DEFAULT.
+     *          3/4 * ng_ipv6_netif_t::max_adv_int seconds.
+     *          The default value is @ref GNRC_IPV6_NETIF_MIN_ADV_INT_DEFAULT.
      */
     uint16_t min_adv_int;
 
     /**
      * @brief   The router lifetime to propagate in router advertisements.
-     *          Must be either 0 or between ng_ipv6_netif_t::max_rtr_int and
+     *          Must be either 0 or between ng_ipv6_netif_t::max_adv_int and
      *          9000 seconds. 0 means this router is not to be used as a default
-     *          router. The default value is @ref GNRC_NDP_NETIF_ADV_LTIME.
+     *          router. The default value is @ref GNRC_IPV6_NETIF_DEFAULT_ROUTER_LTIME.
      */
     uint16_t adv_ltime;
 #endif
@@ -338,6 +338,7 @@ void gnrc_ipv6_netif_remove(kernel_pid_t pid);
  */
 gnrc_ipv6_netif_t *gnrc_ipv6_netif_get(kernel_pid_t pid);
 
+#if (defined(MODULE_GNRC_NDP_ROUTER) || defined(MODULE_GNRC_SIXLOWPAN_ND_ROUTER))
 /**
  * @brief   Set interface to router mode.
  *
@@ -360,6 +361,10 @@ void gnrc_ipv6_netif_set_router(gnrc_ipv6_netif_t *netif, bool enable);
  * @param[in] enable    Status for the GNRC_IPV6_NETIF_FLAGS_RTR flag.
  */
 void gnrc_ipv6_netif_set_rtr_adv(gnrc_ipv6_netif_t *netif, bool enable);
+#else
+#define gnrc_ipv6_netif_set_router(netif, enable)
+#define gnrc_ipv6_netif_set_rtr_adv(netif, enable)
+#endif
 
 /**
  * @brief   Adds an address to an interface.

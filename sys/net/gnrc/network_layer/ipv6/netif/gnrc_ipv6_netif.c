@@ -215,18 +215,6 @@ gnrc_ipv6_netif_t *gnrc_ipv6_netif_get(kernel_pid_t pid)
     return NULL;
 }
 
-void gnrc_ipv6_netif_set_router(gnrc_ipv6_netif_t *netif, bool enable)
-{
-    (void)netif;    /* Don't do anything for non-routers (ideally not call it) */
-    (void)enable;
-}
-
-void gnrc_ipv6_netif_set_rtr_adv(gnrc_ipv6_netif_t *netif, bool enable)
-{
-    (void)netif;    /* Don't do anything for non-routers (ideally not call it) */
-    (void)enable;
-}
-
 ipv6_addr_t *gnrc_ipv6_netif_add_addr(kernel_pid_t pid, const ipv6_addr_t *addr,
                                       uint8_t prefix_len, uint8_t flags)
 {

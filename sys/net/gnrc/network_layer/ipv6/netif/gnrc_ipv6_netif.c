@@ -190,7 +190,10 @@ void gnrc_ipv6_netif_remove(kernel_pid_t pid)
 #endif
 
     mutex_lock(&entry->mutex);
-
+    vtimer_remove(&entry->rtr_sol_timer);
+#ifdef MODULE_GNRC_NDP_ROUTER
+    vtimer_remove(&entry->rtr_adv_timer);
+#endif
     _reset_addr_from_entry(entry);
     DEBUG("ipv6 netif: Remove IPv6 interface %" PRIkernel_pid "\n", pid);
     entry->pid = KERNEL_PID_UNDEF;
@@ -210,6 +213,18 @@ gnrc_ipv6_netif_t *gnrc_ipv6_netif_get(kernel_pid_t pid)
     }
 
     return NULL;
+}
+
+void gnrc_ipv6_netif_set_router(gnrc_ipv6_netif_t *netif, bool enable)
+{
+    (void)netif;    /* Don't do anything for non-routers (ideally not call it) */
+    (void)enable;
+}
+
+void gnrc_ipv6_netif_set_rtr_adv(gnrc_ipv6_netif_t *netif, bool enable)
+{
+    (void)netif;    /* Don't do anything for non-routers (ideally not call it) */
+    (void)enable;
 }
 
 ipv6_addr_t *gnrc_ipv6_netif_add_addr(kernel_pid_t pid, const ipv6_addr_t *addr,

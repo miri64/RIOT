@@ -116,11 +116,11 @@ static ipv6_addr_t *_add_addr_to_entry(gnrc_ipv6_netif_t *entry, const ipv6_addr
         else {
             tmp_addr->flags |= GNRC_IPV6_NETIF_ADDR_FLAGS_NDP_ON_LINK;
         }
-#if defined(MODULE_GNRC_NDP_NODE) || defined(MODULE_GNRC_SIXLOWPAN_ND_ROUTER)
+#if defined(MODULE_GNRC_NDP_NODE) || defined(MODULE_GNRC_SIXLOWPAN_ND)
         /* add solicited-nodes multicast address for new address if interface is not a
          * 6LoWPAN host interface (see: https://tools.ietf.org/html/rfc6775#section-5.2) */
-        if (!(entry->flags & GNRC_IPV6_NETIF_FLAGS_SIXLOWPAN) &&
-            !(entry->flags & GNRC_IPV6_NETIF_FLAGS_ROUTER)) {
+        if (!(entry->flags & GNRC_IPV6_NETIF_FLAGS_SIXLOWPAN) ||
+            (entry->flags & GNRC_IPV6_NETIF_FLAGS_ROUTER)) {
             ipv6_addr_t sol_node;
             ipv6_addr_set_solicited_nodes(&sol_node, addr);
             _add_addr_to_entry(entry, &sol_node, IPV6_ADDR_BIT_LEN, 0);

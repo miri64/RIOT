@@ -124,7 +124,7 @@ kernel_pid_t gnrc_sixlowpan_nd_next_hop_l2addr(uint8_t *l2addr, uint8_t *l2addr_
         size_t next_hop_size = sizeof(ipv6_addr_t);
         uint32_t next_hop_flags = 0;
         if ((next_hop == NULL) &&
-            (fib_get_next_hop(gnrc_ipv6_fib_table, &iface, next_hop_actual.u8, &next_hop_size,
+            (fib_get_next_hop(&gnrc_ipv6_fib_table, &iface, next_hop_actual.u8, &next_hop_size,
                               &next_hop_flags, (uint8_t *)dst,
                               sizeof(ipv6_addr_t), 0) >= 0) &&
             (next_hop_size == sizeof(ipv6_addr_t))) {

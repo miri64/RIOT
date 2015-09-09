@@ -53,8 +53,9 @@ static void _stale_nc(kernel_pid_t iface, ipv6_addr_t *ipaddr, uint8_t *l2addr,
 {
     if (l2addr_len != -ENOTSUP) {
         gnrc_ipv6_nc_t *nc_entry = gnrc_ipv6_nc_get(iface, ipaddr);
-        if (nc_entry == NULL) {            /* tentative type see https://tools.ietf.org/html/rfc6775#section-6.3*/
+        if (nc_entry == NULL) {
 #ifdef MODULE_GNRC_SIXLOWPAN_ND_ROUTER
+            /* tentative type see https://tools.ietf.org/html/rfc6775#section-6.3 */
             gnrc_ipv6_netif_t *ipv6_iface = gnrc_ipv6_netif_get(iface);
             if ((ipv6_iface == NULL) || (ipv6_iface->flags & GNRC_IPV6_NETIF_FLAGS_ROUTER)) {
                 timex_t t = { GNRC_SIXLOWPAN_ND_TENTATIVE_NCE_LIFETIME, 0 };

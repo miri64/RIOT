@@ -547,6 +547,7 @@ void gnrc_ndp_rtr_adv_handle(kernel_pid_t iface, gnrc_pktsnip_t *pkt, ipv6_hdr_t
                 break;
 #endif
         }
+        sicmpv6_size -= (opt->len * 8);
     }
 #if ENABLE_DEBUG && defined(MODULE_NG_SIXLOWPAN_ND)
     if ((if_entry->flags & GNRC_IPV6_NETIF_FLAGS_SIXLOWPAN) && (l2src_len <= 0)) {

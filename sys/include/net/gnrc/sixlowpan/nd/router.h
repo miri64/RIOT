@@ -91,12 +91,12 @@ static inline void gnrc_sixlowpan_nd_router_gc_nc(gnrc_ipv6_nc_t *nc_entry)
 }
 
 /**
- * @brief   Set @p iface to router mode.
+ * @brief   Set @p netif to router mode.
  *
  * @details This sets/unsets the GNRC_IPV6_NETIF_FLAGS_ROUTER and initializes or ceases router
  *          behavior for 6LoWPAN neighbor discovery.
  *
- * @param[in] iface     An IPv6 interface. Must not be NULL.
+ * @param[in] netif     An IPv6 interface. Must not be NULL.
  * @param[in] enable    Status for the GNRC_IPV6_NETIF_FLAGS_ROUTER flag.
  */
 static inline void gnrc_sixlowpan_nd_router_set_router(gnrc_ipv6_netif_t *netif, bool enable)
@@ -110,12 +110,12 @@ static inline void gnrc_sixlowpan_nd_router_set_router(gnrc_ipv6_netif_t *netif,
 }
 
 /**
- * @brief   Set/Unset GNRC_IPV6_NETIF_FLAGS_RTR_ADV flag for @p iface.
+ * @brief   Set/Unset GNRC_IPV6_NETIF_FLAGS_RTR_ADV flag for @p netif.
  *
  * @details GNRC_IPV6_NETIF_FLAGS_RTR_ADV and initializes or ceases
  *          periodic router advertising behavior for neighbor discovery.
  *
- * @param[in] iface     An IPv6 interface. Must not be NULL.
+ * @param[in] netif     An IPv6 interface. Must not be NULL.
  * @param[in] enable    Status for the GNRC_IPV6_NETIF_FLAGS_RTR_ADV flag.
  */
 static inline void gnrc_sixlowpan_nd_router_set_rtr_adv(gnrc_ipv6_netif_t *netif, bool enable)

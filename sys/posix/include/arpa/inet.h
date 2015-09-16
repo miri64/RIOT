@@ -31,6 +31,7 @@
 #include "net/af.h"
 #include "net/ipv4/addr.h"
 #include "net/ipv6/addr.h"
+#include "socket_base/socket.h"
 
 #ifdef __cplusplus
 extern "C" {

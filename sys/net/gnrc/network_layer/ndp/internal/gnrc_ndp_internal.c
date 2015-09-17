@@ -248,7 +248,10 @@ void gnrc_ndp_internal_send_nbr_sol(kernel_pid_t iface, ipv6_addr_t *src, ipv6_a
     DEBUG("dst: %s)\n", ipv6_addr_to_str(addr_str, dst, sizeof(addr_str)));
 
     /* check if there is a fitting source address to target */
-    if ((src == NULL) && ((src = gnrc_ipv6_netif_find_best_src_addr(iface, tgt)) != NULL)) {
+    if (src == NULL) {
+        src = gnrc_ipv6_netif_find_best_src_addr(iface, tgt);
+    }
+    if (src != NULL) {
         l2src_len = _get_l2src(iface, l2src, sizeof(l2src));
 
         if (l2src_len > 0) {

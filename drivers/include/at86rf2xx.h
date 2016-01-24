@@ -182,9 +182,9 @@ typedef struct at86rf2xx_params {
  * @param[in] sleep_pin     GPIO pin connected to the sleep pin
  * @param[in] reset_pin     GPIO pin connected to the reset pin
  */
-void at86rf2xx_setup(at86rf2xx_t *dev, spi_t spi, spi_speed_t spi_speed,
-                     gpio_t cs_pin, gpio_t int_pin, gpio_t sleep_pin,
-                     gpio_t reset_pin);
+int at86rf2xx_setup(at86rf2xx_t *dev, spi_t spi, spi_speed_t spi_speed,
+                    gpio_t cs_pin, gpio_t int_pin, gpio_t sleep_pin,
+                    gpio_t reset_pin);
 
 /**
  * @brief   Trigger a hardware reset and configure radio with default values

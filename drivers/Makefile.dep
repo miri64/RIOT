@@ -6,6 +6,7 @@ endif
 
 ifneq (,$(filter at86rf2%,$(USEMODULE)))
   USEMODULE += at86rf2xx
+  USEMODULE += netdev2_ieee802154
   USEMODULE += ieee802154
   USEMODULE += xtimer
   USEMODULE += netif

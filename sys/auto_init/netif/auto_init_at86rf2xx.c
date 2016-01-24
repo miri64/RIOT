@@ -46,13 +46,13 @@ void auto_init_at86rf2xx(void)
     for (unsigned i = 0; i < AT86RF2XX_NUM; i++) {
         DEBUG("Initializing AT86RF2xx radio at SPI_%i\n", i);
         const at86rf2xx_params_t *p = &at86rf2xx_params[i];
-        int res = at86rf2xx_init(&at86rf2xx_devs[i],
-                                 p->spi,
-                                 p->spi_speed,
-                                 p->cs_pin,
-                                 p->int_pin,
-                                 p->sleep_pin,
-                                 p->reset_pin);
+        int res = at86rf2xx_setup(&at86rf2xx_devs[i],
+                                  p->spi,
+                                  p->spi_speed,
+                                  p->cs_pin,
+                                  p->int_pin,
+                                  p->sleep_pin,
+                                  p->reset_pin);
 
         if (res < 0) {
             DEBUG("Error initializing AT86RF2xx radio device!\n");

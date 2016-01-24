@@ -50,7 +50,7 @@ int at86rf2xx_setup(at86rf2xx_t *dev, spi_t spi, spi_speed_t spi_speed,
     dev->idle_state = AT86RF2XX_STATE_TRX_OFF;
     dev->state = AT86RF2XX_STATE_SLEEP;
     /* initialise SPI */
-    spi_init_master(dev->spi, SPI_CONF_FIRST_RISING, spi_speed);
+    return spi_init_master(dev->spi, SPI_CONF_FIRST_RISING, spi_speed);
 }
 
 void at86rf2xx_reset(at86rf2xx_t *dev)
@@ -209,8 +209,8 @@ void at86rf2xx_tx_exec(at86rf2xx_t *dev)
     /* trigger sending of pre-loaded frame */
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE,
                         AT86RF2XX_TRX_STATE__TX_START);
-    if (dev->event_cb && (dev->options & AT86RF2XX_OPT_TELL_TX_START)) {
-        dev->event_cb(NETDEV_EVENT_TX_STARTED, NULL);
+    if (dev->event_callback && (dev->options & AT86RF2XX_OPT_TELL_TX_START)) {
+        dev->event_callback((netdev2_t *)dev, NETDEV2_EVENT_TX_STARTED, NULL);
     }
 }
 

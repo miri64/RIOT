@@ -115,7 +115,7 @@ static int _send(netdev2_t *netdev, const struct iovec *vector, int count)
     /* set internal sequence number */
     assert(vector[0].iov_len > 3);
     mhr = vector[0].iov_base;
-    mhr[3] = dev->seq++;
+    mhr[3] = dev->seq_nr++;
     at86rf2xx_tx_prepare(dev);
 
     /* load packet data into FIFO */

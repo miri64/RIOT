@@ -51,7 +51,7 @@ static int _get_iid(netdev2_t *netdev, eui64_t *value, size_t max_len)
     return sizeof(eui64_t);
 }
 
-int netdev2_eth_get(netdev2_t *dev, netopt_t opt, void *value, size_t max_len)
+int netdev2_ieee802154_get(netdev2_t *dev, netopt_t opt, void *value, size_t max_len)
 {
     int res = 0;
 
@@ -77,7 +77,7 @@ int netdev2_eth_get(netdev2_t *dev, netopt_t opt, void *value, size_t max_len)
     return res;
 }
 
-int netdev2_eth_set(netdev2_t *dev, netopt_t opt, void *value, size_t value_len)
+int netdev2_ieee802154_set(netdev2_t *dev, netopt_t opt, void *value, size_t value_len)
 {
     (void)dev;
     (void)value;

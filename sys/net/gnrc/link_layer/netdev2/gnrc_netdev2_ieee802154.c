@@ -13,6 +13,9 @@
  * @author  Martine Lenders <mlenders@inf.fu-berlin.de>
  */
 
+#include "stddef.h"
+#include "od.h"
+
 #include "net/gnrc.h"
 #include "net/ieee802154.h"
 

@@ -240,6 +240,10 @@ export USEMODULE_INCLUDES =
 include $(RIOTBASE)/sys/Makefile.include
 include $(RIOTBASE)/drivers/Makefile.include
 
+ifneq (emb6,$(USEPKG))
+  include $(RIOTBASE)/pkg/emb6/Makefile.include
+endif
+
 USEMODULE_INCLUDES_ = $(shell echo $(USEMODULE_INCLUDES) | tr ' ' '\n' | awk '!a[$$0]++' | tr '\n' ' ')
 
 INCLUDES += $(USEMODULE_INCLUDES_:%=-I%)

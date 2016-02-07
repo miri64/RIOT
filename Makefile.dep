@@ -317,6 +317,10 @@ ifneq (,$(filter posix_semaphore,$(USEMODULE)))
   USEMODULE += xtimer
 endif
 
+ifneq (,$(filter emb6_conn_udp,$(USEMODULE)))
+  USEMODULE += emb6_sock
+endif
+
 ifneq (,$(filter emb6_%,$(USEMODULE)))
   USEMODULE += emb6
 endif

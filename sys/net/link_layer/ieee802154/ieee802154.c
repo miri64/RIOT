@@ -15,6 +15,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
 
 #include "net/ieee802154.h"
 
@@ -100,9 +101,8 @@ size_t ieee802154_set_frame_hdr(uint8_t *buf, const uint8_t *src, size_t src_len
             break;
         case 8:
             buf[1] |= IEEE802154_FCF_SRC_ADDR_LONG;
-            for (int i = 7; i >= 0; i--) {
-                buf[pos++] = src[i];
-            }
+            memcpy(&(buf[pos]), src, 8);
+            pos += 8;
             break;
         default:
             return 0;

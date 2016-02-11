@@ -29,7 +29,6 @@
 
 static int _get_iid(netdev2_ieee802154_t *dev, eui64_t *value, size_t max_len)
 {
-    uint8_t *addr;
     uint16_t addr_len;
 
     if (max_len < sizeof(eui64_t)) {
@@ -37,14 +36,19 @@ static int _get_iid(netdev2_ieee802154_t *dev, eui64_t *value, size_t max_len)
     }
 
     if (dev->flags & NETDEV2_IEEE802154_SRC_MODE_LONG) {
+        uint64_t tmp;
         addr_len = IEEE802154_LONG_ADDRESS_LEN;
-        addr = dev->long_addr;
+        memcpy(&tmp, dev->long_addr, addr_len);
+        tmp = byteorder_swapll(tmp);
+        ieee802154_get_iid(value, (uint8_t*)&tmp, addr_len);
     }
     else {
+        uint16_t tmp;
         addr_len = IEEE802154_SHORT_ADDRESS_LEN;
-        addr = dev->short_addr;
+        memcpy(&tmp, dev->short_addr, addr_len);
+        tmp = byteorder_swaps(tmp);
+        ieee802154_get_iid(value, (uint8_t*)&tmp, addr_len);
     }
-    ieee802154_get_iid(value, addr, addr_len);
 
     return sizeof(eui64_t);
 }
@@ -68,7 +72,9 @@ int netdev2_ieee802154_get(netdev2_ieee802154_t *dev, netopt_t opt, void *value,
                 res = -EOVERFLOW;
                 break;
             }
-            memcpy(value, dev->long_addr, sizeof(dev->long_addr));
+            for (int i = 0; i < 8; i++) {
+                ((uint8_t *)value)[i] = dev->long_addr[7 - i];
+            }
             res = sizeof(dev->long_addr);
             break;
         case NETOPT_ADDR_LEN:

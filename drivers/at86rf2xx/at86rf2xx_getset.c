@@ -117,7 +117,7 @@ uint64_t at86rf2xx_get_addr_long(at86rf2xx_t *dev)
     uint64_t addr;
     uint8_t *ap = (uint8_t *)(&addr);
     for (int i = 0; i < 8; i++) {
-        ap[i] = dev->long_addr[i];
+        ap[i] = dev->long_addr[7 - i];
     }
     return addr;
 }
@@ -125,9 +125,9 @@ uint64_t at86rf2xx_get_addr_long(at86rf2xx_t *dev)
 void at86rf2xx_set_addr_long(at86rf2xx_t *dev, uint64_t addr)
 {
     for (int i = 0; i < 8; i++) {
-        dev->long_addr[i] = (uint8_t)(addr >> (7 - i));
+        dev->long_addr[i] = (addr >> ((7 - i) * 8));
         at86rf2xx_reg_write(dev, (AT86RF2XX_REG__IEEE_ADDR_0 + i),
-                            (addr >> i));
+                dev->long_addr[i]);
     }
 }
 

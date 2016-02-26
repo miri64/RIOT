@@ -65,18 +65,14 @@ const s_nsIf_t emb6_netdev2_driver = {
 static void _get_recv_pkt(void)
 {
     char *dataptr;
-    unsigned state;
     struct netdev2_radio_rx_info rx_info;
     int8_t len;
 
     packetbuf_clear();
 
-    state = disableIRQ();
     dataptr = packetbuf_dataptr();
     len = _dev->driver->recv(_dev, dataptr, PACKETBUF_SIZE, &rx_info);
     _last_rssi = rx_info.rssi;
-    /* Restore interrupts. */
-    restoreIRQ(state);
 
     if ((len > 0) && (_lowmac != NULL)) {
         packetbuf_set_datalen(len);

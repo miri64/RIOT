@@ -16,7 +16,7 @@
 #include <inttypes.h>
 
 #include "cpu.h"
-#include "irq.h"
+#include "mutex.h"
 #include "periph/gpio.h"
 #include "periph/hwrng.h"
 #include "xtimer.h"
@@ -24,14 +24,16 @@
 #include "target.h"
 #include "bsp.h"
 
+static mutex_t critical_mutex = MUTEX_INIT;
+
 void hal_enterCritical(void)
 {
-    disableIRQ();
+    mutex_lock(&critical_mutex);
 }
 
 void hal_exitCritical(void)
 {
-    enableIRQ();
+    mutex_unlock(&critical_mutex);
 }
 
 int8_t hal_init(void)

@@ -1,7 +1,7 @@
 From d7770e65491c7e21daeb1b5d07395f4437114e9d Mon Sep 17 00:00:00 2001
 From: Martine Lenders <mail@martine-lenders.eu>
 Date: Fri, 5 Feb 2016 00:46:31 +0100
-Subject: [PATCH 3/3] Fix warnings
+Subject: [PATCH 3/4] Fix warnings
 
 ---
  emb6/src/net/ipv6/multicast/roll-tm.c          | 82 ++++++++++++++++++------

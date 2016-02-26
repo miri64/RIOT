@@ -1,7 +1,7 @@
 From 51298ee1a1f4b55abaf19e983825e71d0703ea4a Mon Sep 17 00:00:00 2001
 From: Martine Lenders <mail@martine-lenders.eu>
 Date: Thu, 4 Feb 2016 22:15:23 +0100
-Subject: [PATCH 2/3] Rename colliding files and functions
+Subject: [PATCH 2/4] Rename colliding files and functions
 
 ---
  emb6/emb6.c                                    |   2 +-

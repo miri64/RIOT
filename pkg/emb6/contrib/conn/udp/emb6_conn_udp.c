@@ -15,8 +15,11 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 
+#include "evproc.h"
 #include "msg.h"
+#include "mutex.h"
 #include "net/af.h"
 #include "net/conn/udp.h"
 #include "net/ipv6/hdr.h"
@@ -26,10 +29,24 @@
 #define _MSG_TYPE_CLOSE     (0x4123)
 #define _MSG_TYPE_RCV       (0x4124)
 
+/* struct to describe a sendto command for emb6 thread */
+typedef struct {
+    struct udp_socket sock;
+    mutex_t mutex;
+    const void *data;
+    int res;
+    uint16_t data_len;
+} _send_cmd_t;
+
+extern uint16_t uip_slen;
+
+static bool send_registered = false;
+
 static void _input_callback(struct udp_socket *c, void *ptr,
                             const uip_ipaddr_t *src_addr, uint16_t src_port,
                             const uip_ipaddr_t *dst_addr, uint16_t dst_port,
                             const uint8_t *data, uint16_t datalen);
+static void _output_callback(c_event_t c_event, p_data_t p_data);
 
 static int _reg_and_bind(struct udp_socket *c, void *ptr,
                          udp_socket_input_callback_t cb, uint16_t port)
@@ -145,11 +162,17 @@ int conn_udp_sendto(const void *data, size_t len, const void *src, size_t src_le
                     uint16_t dport)
 {
     int res;
-    struct udp_socket sock;
+    _send_cmd_t send_cmd;
 
-    (void)src;
-    (void)src_len;
-    (void)dst_len;
+    if (!send_registered) {
+        if (evproc_regCallback(EVENT_TYPE_CONN_SEND, _output_callback) != E_SUCCESS) {
+            return -EIO;
+        }
+        else {
+            send_registered = true;
+        }
+    }
+    mutex_init(&send_cmd.mutex);
     if ((len > (UIP_BUFSIZE - (UIP_LLH_LEN + UIP_IPUDPH_LEN))) ||
         (len > UINT16_MAX)) {
         return -EMSGSIZE;
@@ -157,14 +180,26 @@ int conn_udp_sendto(const void *data, size_t len, const void *src, size_t src_le
     if ((dst_len > sizeof(ipv6_addr_t)) || (family != AF_INET6)) {
         return -EAFNOSUPPORT;
     }
-    if ((res = _reg_and_bind(&sock, NULL, NULL, sport)) < 0) {
+    mutex_lock(&send_cmd.mutex);
+    send_cmd.data = data;
+    send_cmd.data_len = (uint16_t)len;
+    if ((res = _reg_and_bind(&send_cmd.sock, NULL, NULL, sport)) < 0) {
+        mutex_unlock(&send_cmd.mutex);
         return res;
     }
-    if ((res = udp_socket_sendto(&sock, data, (uint16_t)len, dst, dport)) < 0) {
+    udp_socket_connect(&send_cmd.sock, (uip_ipaddr_t *)dst, dport); /* can't fail at this point */
+    /* change to emb6 thread context */
+    if (evproc_putEvent(E_EVPROC_TAIL, EVENT_TYPE_CONN_SEND, &send_cmd) != E_SUCCESS) {
+        udp_socket_close(&send_cmd.sock);
+        mutex_unlock(&send_cmd.mutex);
         return -EIO;
     }
-    udp_socket_close(&sock);
-    return res;
+    /* block thread until data was send */
+    mutex_lock(&send_cmd.mutex);
+    udp_socket_close(&send_cmd.sock);
+    mutex_unlock(&send_cmd.mutex);
+
+    return send_cmd.res;
 }
 
 static void _input_callback(struct udp_socket *c, void *ptr,
@@ -191,6 +226,19 @@ static void _input_callback(struct udp_socket *c, void *ptr,
     else {
         mutex_unlock(&conn->mutex);
     }
+}
+
+static void _output_callback(c_event_t c_event, p_data_t p_data)
+{
+    _send_cmd_t *send_cmd = (_send_cmd_t *)p_data;
+
+    if ((c_event != EVENT_TYPE_CONN_SEND) || (p_data == NULL)) {
+        return;
+    }
+    if ((send_cmd->res = udp_socket_send(&send_cmd->sock, send_cmd->data, send_cmd->data_len)) < 0) {
+        send_cmd->res = -EHOSTUNREACH;
+    }
+    mutex_unlock(&send_cmd->mutex);
 }
 
 /** @} */

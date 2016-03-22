@@ -39,6 +39,8 @@ static struct uip_icmp6_echo_reply_notification recv_ntfy = { NULL, NULL };
 static uint16_t seq = 0;
 static atomic_int_t received, num;
 
+static bool _waiting = true;
+
 static inline icmpv6_echo_t *uip_icmp_buf(void)
 {
     return ((icmpv6_echo_t *)&uip_buf[uip_l2_l3_hdr_len]);
@@ -82,6 +84,8 @@ static void handle_reply(uip_ipaddr_t *source, uint8_t ttl, uint8_t *data,
     char addr_str[IPV6_ADDR_MAX_STR_LEN];
     icmpv6_echo_t *ping = (icmpv6_echo_t *)data;
 
+    _waiting = false;
+
     ipv6_addr_to_str(addr_str, (ipv6_addr_t *)source, sizeof(addr_str));
 
     atomic_inc(&received);
@@ -118,8 +122,12 @@ int ping_cmd(int argc, char **argv)
         uip_icmp6_echo_reply_callback_add(&recv_ntfy, handle_reply);
     }
     for (uint16_t i = 0; i < _num; i++) {
+        _waiting = true;
         ping_send((uip_ipaddr_t *)&dst, payload_len);
         xtimer_usleep(1000000);
+        if (_waiting) {
+            puts("Timeout");
+        }
     }
 
     return 0;

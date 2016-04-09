@@ -150,14 +150,40 @@ void gnrc_ipv6_demux(kernel_pid_t iface, gnrc_pktsnip_t *current, gnrc_pktsnip_t
         DEBUG("ipv6: unable to forward packet as no one is interested in it\n");
 
         if (!interested) {
+#ifdef MODULE_GNRC_SIXLOWPAN_IPHC_NHC
+            /* second statement is true for small 6LoWPAN NHC decompressed frames
+             * since in this case it looks like
+             *
+             * * GNRC_NETTYPE_UDP <- pkt    (or GNRC_NETTYPE_IPV6_EXT * respectively)
+             * |
+             * * GNRC_NETTYPE_UDP <- current
+             * |
+             * * GNRC_NETTYPE_IPV6
+             */
+            assert((current == pkt) || (current == pkt->next));
+#else
             assert(current == pkt);
+#endif
             gnrc_pktbuf_release(pkt);
             return;
         }
     }
     else {
         if (!interested) {
+#ifdef MODULE_GNRC_SIXLOWPAN_IPHC_NHC
+            /* second statement is true for small 6LoWPAN NHC decompressed frames
+             * since in this case it looks like
+             *
+             * * GNRC_NETTYPE_UDP <- pkt    (or GNRC_NETTYPE_IPV6_EXT * respectively)
+             * |
+             * * GNRC_NETTYPE_UDP <- current
+             * |
+             * * GNRC_NETTYPE_IPV6
+             */
+            assert((current == pkt) || (current == pkt->next));
+#else
             assert(current == pkt);
+#endif
             /* IPv6 is not interested anymore so `- 1` */
             receiver_num--;
         }

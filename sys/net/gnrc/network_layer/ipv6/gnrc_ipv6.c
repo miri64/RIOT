@@ -154,10 +154,10 @@ void gnrc_ipv6_demux(kernel_pid_t iface, gnrc_pktsnip_t *current, gnrc_pktsnip_t
             /* second statement is true for small 6LoWPAN NHC decompressed frames
              * since in this case it looks like
              *
-             * * GNRC_NETTYPE_UDP <- pkt    (or GNRC_NETTYPE_IPV6_EXT * respectively)
-             * |
+             * * GNRC_NETTYPE_UDP <- pkt    (or GNRC_NETTYPE_IPV6_EXT respectively)
+             * v
              * * GNRC_NETTYPE_UDP <- current
-             * |
+             * v
              * * GNRC_NETTYPE_IPV6
              */
             assert((current == pkt) || (current == pkt->next));
@@ -174,10 +174,10 @@ void gnrc_ipv6_demux(kernel_pid_t iface, gnrc_pktsnip_t *current, gnrc_pktsnip_t
             /* second statement is true for small 6LoWPAN NHC decompressed frames
              * since in this case it looks like
              *
-             * * GNRC_NETTYPE_UDP <- pkt    (or GNRC_NETTYPE_IPV6_EXT * respectively)
-             * |
+             * * GNRC_NETTYPE_UDP <- pkt    (or GNRC_NETTYPE_IPV6_EXT respectively)
+             * v
              * * GNRC_NETTYPE_UDP <- current
-             * |
+             * v
              * * GNRC_NETTYPE_IPV6
              */
             assert((current == pkt) || (current == pkt->next));
@@ -188,13 +188,13 @@ void gnrc_ipv6_demux(kernel_pid_t iface, gnrc_pktsnip_t *current, gnrc_pktsnip_t
             receiver_num--;
         }
 
-        gnrc_pktbuf_hold(current, receiver_num);
+        gnrc_pktbuf_hold(pkt, receiver_num);
 
         /* XXX can't use gnrc_netapi_dispatch_receive() twice here since a call to that function
          *     implicitly hands all rights to the packet to one of the receiving threads. As a
          *     result, the second call to gnrc_netapi_dispatch_receive() would be invalid */
-        _dispatch_rcv_pkt(current->type, GNRC_NETREG_DEMUX_CTX_ALL, current);
-        _dispatch_rcv_pkt(GNRC_NETTYPE_IPV6, nh, current);
+        _dispatch_rcv_pkt(pkt->type, GNRC_NETREG_DEMUX_CTX_ALL, pkt);
+        _dispatch_rcv_pkt(GNRC_NETTYPE_IPV6, nh, pkt);
 
         if (!interested) {
             return;
@@ -230,7 +230,20 @@ void gnrc_ipv6_demux(kernel_pid_t iface, gnrc_pktsnip_t *current, gnrc_pktsnip_t
         break;
     }
 
+#ifdef MODULE_GNRC_SIXLOWPAN_IPHC_NHC
+    /* second statement is true for small 6LoWPAN NHC decompressed frames
+     * since in this case it looks like
+     *
+     * * GNRC_NETTYPE_UDP <- pkt    (or GNRC_NETTYPE_IPV6_EXT respectively)
+     * v
+     * * GNRC_NETTYPE_UDP <- current
+     * v
+     * * GNRC_NETTYPE_IPV6
+     */
+    assert((current == pkt) || (current == pkt->next));
+#else
     assert(current == pkt);
+#endif
     gnrc_pktbuf_release(pkt);
 }
 

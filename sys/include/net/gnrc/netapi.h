@@ -91,11 +91,12 @@ int gnrc_netapi_send(kernel_pid_t pid, gnrc_pktsnip_t *pkt);
  * @param[in] demux_ctx demultiplexing context for @p type.
  * @param[in] cmd       command for all subscribers
  * @param[in] pkt       pointer into the packet buffer holding the data to send
+ * @param[in] release   releases the pkt after dispatching if true
  *
  * @return Number of subscribers to (@p type, @p demux_ctx).
  */
 int gnrc_netapi_dispatch(gnrc_nettype_t type, uint32_t demux_ctx, uint16_t cmd,
-                         gnrc_pktsnip_t *pkt);
+                         gnrc_pktsnip_t *pkt, bool release);
 
 /**
  * @brief   Sends a @ref GNRC_NETAPI_MSG_TYPE_SND command to all subscribers to
@@ -110,7 +111,7 @@ int gnrc_netapi_dispatch(gnrc_nettype_t type, uint32_t demux_ctx, uint16_t cmd,
 static inline int gnrc_netapi_dispatch_send(gnrc_nettype_t type, uint32_t demux_ctx,
                                             gnrc_pktsnip_t *pkt)
 {
-    return gnrc_netapi_dispatch(type, demux_ctx, GNRC_NETAPI_MSG_TYPE_SND, pkt);
+    return gnrc_netapi_dispatch(type, demux_ctx, GNRC_NETAPI_MSG_TYPE_SND, pkt, true);
 }
 
 /**
@@ -137,7 +138,7 @@ int gnrc_netapi_receive(kernel_pid_t pid, gnrc_pktsnip_t *pkt);
 static inline int gnrc_netapi_dispatch_receive(gnrc_nettype_t type, uint32_t demux_ctx,
                                                gnrc_pktsnip_t *pkt)
 {
-    return gnrc_netapi_dispatch(type, demux_ctx, GNRC_NETAPI_MSG_TYPE_RCV, pkt);
+    return gnrc_netapi_dispatch(type, demux_ctx, GNRC_NETAPI_MSG_TYPE_RCV, pkt, true);
 }
 
 /**

@@ -74,14 +74,14 @@ static inline int _snd_rcv(kernel_pid_t pid, uint16_t type, gnrc_pktsnip_t *pkt)
 }
 
 int gnrc_netapi_dispatch(gnrc_nettype_t type, uint32_t demux_ctx,
-                         uint16_t cmd, gnrc_pktsnip_t *pkt)
+                         uint16_t cmd, gnrc_pktsnip_t *pkt, bool release)
 {
     int numof = gnrc_netreg_num(type, demux_ctx);
 
     if (numof != 0) {
         gnrc_netreg_entry_t *sendto = gnrc_netreg_lookup(type, demux_ctx);
 
-        gnrc_pktbuf_hold(pkt, numof - 1);
+        gnrc_pktbuf_hold(pkt, release ? numof - 1 : numof);
 
         while (sendto) {
             if (_snd_rcv(sendto->pid, cmd, pkt) < 1) {

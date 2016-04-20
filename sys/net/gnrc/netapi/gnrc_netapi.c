@@ -73,8 +73,8 @@ static inline int _snd_rcv(kernel_pid_t pid, uint16_t type, gnrc_pktsnip_t *pkt)
     return ret;
 }
 
-int gnrc_netapi_dispatch(gnrc_nettype_t type, uint32_t demux_ctx,
-                         uint16_t cmd, gnrc_pktsnip_t *pkt, bool release)
+static inline int _gnrc_netapi_dispatch(gnrc_nettype_t type, uint32_t demux_ctx,
+                                        uint16_t cmd, gnrc_pktsnip_t *pkt, bool release)
 {
     int numof = gnrc_netreg_num(type, demux_ctx);
 
@@ -93,6 +93,18 @@ int gnrc_netapi_dispatch(gnrc_nettype_t type, uint32_t demux_ctx,
     }
 
     return numof;
+}
+
+int gnrc_netapi_dispatch(gnrc_nettype_t type, uint32_t demux_ctx,
+                         uint16_t cmd, gnrc_pktsnip_t *pkt, bool release)
+{
+    return _gnrc_netapi_dispatch(type, demux_ctx, cmd, pkt, release);
+}
+
+int gnrc_netapi_dispatch_and_release(gnrc_nettype_t type, uint32_t demux_ctx,
+                                     uint16_t cmd, gnrc_pktsnip_t *pkt)
+{
+    return _gnrc_netapi_dispatch(type, demux_ctx, cmd, pkt, true);
 }
 
 int gnrc_netapi_send(kernel_pid_t pid, gnrc_pktsnip_t *pkt)

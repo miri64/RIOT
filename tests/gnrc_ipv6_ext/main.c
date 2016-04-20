@@ -35,7 +35,7 @@
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 
-static void _init_interface() {
+static void _init_interface(void) {
     kernel_pid_t ifs[GNRC_NETIF_NUMOF];
     ipv6_addr_t addr = IPV6_ADDR_UNSPECIFIED;
 

@@ -157,7 +157,7 @@ void gnrc_ipv6_ext_demux(kernel_pid_t iface,
 
         switch (nh) {
             case PROTNUM_IPV6_EXT_RH:
-    #ifdef MODULE_GNRC_RPL_SRH
+#ifdef MODULE_GNRC_RPL_SRH
                 switch (_handle_rh(current, pkt)) {
                     case GNRC_IPV6_EXT_OK:
                         /* We are the final destination. So proceeds like normal packet. */
@@ -182,7 +182,7 @@ void gnrc_ipv6_ext_demux(kernel_pid_t iface,
                 }
 
                 break;
-    #endif
+#endif
 
             case PROTNUM_IPV6_EXT_HOPOPT:
             case PROTNUM_IPV6_EXT_DST:

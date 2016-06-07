@@ -109,21 +109,34 @@ typedef enum {
  *
  * @return  An initialized netreg entry
  */
-#define GNRC_NETREG_ENTRY_INIT_CB(demux_ctx, cb)    { NULL, demux_ctx, \
+#define GNRC_NETREG_ENTRY_INIT_CB(demux_ctx, cbd)   { NULL, demux_ctx, \
                                                       GNRC_NETREG_TYPE_CB, \
-                                                      { .cb = cb } }
+                                                      { .cbd = cbd } }
 
 /**
  * @brief   Packet handler callback for netreg entries with callback.
  *
  * @pre `cmd` $\in$ { @ref GNRC_NETAPI_MSG_TYPE_RCV, @ref GNRC_NETAPI_MSG_TYPE_SND }
  *
+ * @note    Only available with @ref net_gnrc_netreg_extra.
+ *
  * @param[in] cmd   @ref net_gnrc_netapi command type. Must be either
  *                  @ref GNRC_NETAPI_MSG_TYPE_SND or
  *                  @ref GNRC_NETAPI_MSG_TYPE_RCV
  * @param[in] pkt   The packet to handle.
+ * @param[in] ctx   Application context.
  */
-typedef void (*gnrc_netreg_entry_cb_t)(uint16_t cmd, gnrc_pktsnip_t *pkt);
+typedef void (*gnrc_netreg_entry_cb_t)(uint16_t cmd, gnrc_pktsnip_t *pkt,
+                                       void *ctx);
+
+/**
+ * @brief   Callback + Context descriptor
+ * @note    Only available with @ref net_gnrc_netreg_extra.
+ */
+typedef struct {
+    gnrc_netreg_entry_cb_t cb;  /**< the callback */
+    void *ctx;                  /**< application context for the callback */
+} gnrc_netreg_entry_cbd_t
 #endif
 
 /**
@@ -168,7 +181,7 @@ typedef struct gnrc_netreg_entry {
          *
          * @note    Only available with @ref net_gnrc_netreg_extra.
          */
-        gnrc_netreg_entry_cb_t cb;
+        gnrc_netreg_entry_cbd_t *cbd;
 #endif
     } target;                   /**< Target for the registry entry */
 } gnrc_netreg_entry_t;
@@ -231,12 +244,12 @@ static inline void gnrc_netreg_entry_init_mbox(gnrc_netreg_entry_t *entry,
  */
 static inline void gnrc_netreg_entry_init_mbox(gnrc_netreg_entry_t *entry,
                                                uint32_t demux_ctx,
-                                               gnrc_netreg_entry_cb_t *cb)
+                                               gnrc_netreg_entry_cbd_t *cbd)
 {
     entry->next = NULL;
     entry->demux_ctx = demux_ctx;
     entry->type = GNRC_NETREG_TYPE_CB;
-    entry->target.cb = cb;
+    entry->target.cbd = cbd;
 }
 #endif
 

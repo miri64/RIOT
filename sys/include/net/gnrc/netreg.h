@@ -54,6 +54,7 @@ extern "C" {
 typedef enum {
     GNRC_NETREG_TYPE_DEFAULT = 0,
     GNRC_NETREG_TYPE_MBOX,
+    GNRC_NETREG_TYPE_CB,
 } gnrc_netreg_type_t;
 #endif
 
@@ -96,6 +97,33 @@ typedef enum {
 #define GNRC_NETREG_ENTRY_INIT_MBOX(demux_ctx, mbox) { NULL, demux_ctx, \
                                                        GNRC_NETREG_TYPE_MBOX, \
                                                        { .mbox = mbox } }
+
+/**
+ * @brief   Initializes a netreg entry statically with callback
+ *
+ * @param[in] demux_ctx The @ref gnrc_netreg_entry_t::demux_ctx "demux context"
+ *                      for the netreg entry
+ * @param[in] cb        Target callback for the registry entry
+ *
+ * @note    Only available with @ref net_gnrc_netreg_extra.
+ *
+ * @return  An initialized netreg entry
+ */
+#define GNRC_NETREG_ENTRY_INIT_CB(demux_ctx, cb)    { NULL, demux_ctx, \
+                                                      GNRC_NETREG_TYPE_CB, \
+                                                      { .cb = cb } }
+
+/**
+ * @brief   Packet handler callback for netreg entries with callback.
+ *
+ * @pre `cmd` $\in$ { @ref GNRC_NETAPI_MSG_TYPE_RCV, @ref GNRC_NETAPI_MSG_TYPE_SND }
+ *
+ * @param[in] cmd   @ref net_gnrc_netapi command type. Must be either
+ *                  @ref GNRC_NETAPI_MSG_TYPE_SND or
+ *                  @ref GNRC_NETAPI_MSG_TYPE_RCV
+ * @param[in] pkt   The packet to handle.
+ */
+typedef void (*gnrc_netreg_entry_cb_t)(uint16_t cmd, gnrc_pktsnip_t *pkt);
 #endif
 
 /**
@@ -134,6 +162,13 @@ typedef struct gnrc_netreg_entry {
          * @note    Only available with @ref net_gnrc_netreg_extra.
          */
         mbox_t *mbox;
+
+        /**
+         * @brief   Target callback for the registry entry
+         *
+         * @note    Only available with @ref net_gnrc_netreg_extra.
+         */
+        gnrc_netreg_entry_cb_t cb;
 #endif
     } target;                   /**< Target for the registry entry */
 } gnrc_netreg_entry_t;
@@ -183,6 +218,25 @@ static inline void gnrc_netreg_entry_init_mbox(gnrc_netreg_entry_t *entry,
     entry->demux_ctx = demux_ctx;
     entry->type = GNRC_NETREG_TYPE_MBOX;
     entry->target.mbox = mbox;
+}
+/**
+ * @brief   Initializes a netreg entry dynamically with callback
+ *
+ * @param[out] entry    A netreg entry
+ * @param[in] demux_ctx The @ref gnrc_netreg_entry_t::demux_ctx "demux context"
+ *                      for the netreg entry
+ * @param[in] mbox      Target callback for the registry entry
+ *
+ * @note    Only available with @ref net_gnrc_netreg_extra.
+ */
+static inline void gnrc_netreg_entry_init_mbox(gnrc_netreg_entry_t *entry,
+                                               uint32_t demux_ctx,
+                                               gnrc_netreg_entry_cb_t *cb)
+{
+    entry->next = NULL;
+    entry->demux_ctx = demux_ctx;
+    entry->type = GNRC_NETREG_TYPE_CB;
+    entry->target.cb = cb;
 }
 #endif
 

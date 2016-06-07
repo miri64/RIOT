@@ -117,6 +117,9 @@ int gnrc_netapi_dispatch(gnrc_nettype_t type, uint32_t demux_ctx,
                         release = 1;
                     }
                     break;
+                case GNRC_NETREG_TYPE_CB:
+                    sendto->target.cb(cmd, pkt);
+                    break;
                 default:
                     /* unknown dispatch type */
                     release = 1;

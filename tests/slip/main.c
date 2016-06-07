@@ -30,7 +30,8 @@
  */
 int main(void)
 {
-    gnrc_netreg_entry_t dump;
+    gnrc_netreg_entry_t dump = GNRC_NETREG_ENTRY_INIT_PID(GNRC_NETREG_DEMUX_CTX_ALL,
+                                                          gnrc_pktdump_pid);
 
     puts("SLIP test");
 

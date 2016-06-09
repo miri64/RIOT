@@ -242,9 +242,9 @@ static inline void gnrc_netreg_entry_init_mbox(gnrc_netreg_entry_t *entry,
  *
  * @note    Only available with @ref net_gnrc_netreg_extra.
  */
-static inline void gnrc_netreg_entry_init_mbox(gnrc_netreg_entry_t *entry,
-                                               uint32_t demux_ctx,
-                                               gnrc_netreg_entry_cbd_t *cbd)
+static inline void gnrc_netreg_entry_init_cb(gnrc_netreg_entry_t *entry,
+                                             uint32_t demux_ctx,
+                                             gnrc_netreg_entry_cbd_t *cbd)
 {
     entry->next = NULL;
     entry->demux_ctx = demux_ctx;

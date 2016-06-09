@@ -110,7 +110,7 @@ int conn_ip_sendto(const void *data, size_t len, const void *src, size_t src_len
             pkt = hdr;
             l3_type = GNRC_NETTYPE_IPV6;
             break;
-#endif /* MODULE_GNRC_IPV6 */
+#endif  /* MODULE_GNRC_IPV6 */
         default:
             (void)src;
             (void)src_len;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Martine Lenders <mlenders@inf.fu-berlin.de>
+ * Copyright (C) 2016 Martine Lenders <mlenders@inf.fu-berlin.de>
  *
  * This file is subject to the terms and conditions of the GNU Lesser
  * General Public License v2.1. See the file LICENSE in the top level
@@ -11,88 +11,175 @@
  *
  * @file
  * @author  Martine Lenders <mlenders@inf.fu-berlin.de>
- * @author  Oliver Hahm <oliver.hahm@inria.fr>
  */
 
+#include <errno.h>
+
+#include "net/af.h"
 #include "net/conn.h"
 #include "net/ipv6/hdr.h"
 #include "net/gnrc/conn.h"
 #include "net/gnrc/ipv6/hdr.h"
 #include "net/gnrc/ipv6/netif.h"
+#include "net/gnrc/netreg.h"
 #include "net/udp.h"
+#include "utlist.h"
+#include "xtimer.h"
 
-int gnrc_conn_recvfrom(conn_t *conn, void *data, size_t max_len, void *addr, size_t *addr_len,
-                       uint16_t *port)
-{
-    msg_t msg;
-    int timeout = 3;
-    while ((timeout--) > 0) {
-        gnrc_pktsnip_t *pkt, *l3hdr;
-        size_t size = 0;
-        msg_receive(&msg);
-        switch (msg.type) {
-            case GNRC_NETAPI_MSG_TYPE_RCV:
-                pkt = msg.content.ptr;
-                if (pkt->size > max_len) {
-                    return -ENOMEM;
-                }
-                l3hdr = gnrc_pktsnip_search_type(pkt, conn->l3_type);
-                if (l3hdr == NULL) {
-                    msg_send_to_self(&msg); /* requeue invalid messages */
-                    continue;
-                }
-#if defined(MODULE_CONN_UDP) || defined(MODULE_CONN_TCP)
-                if ((conn->l4_type != GNRC_NETTYPE_UNDEF) && (port != NULL)) {
-                    gnrc_pktsnip_t *l4hdr;
-                    l4hdr = gnrc_pktsnip_search_type(pkt, conn->l4_type);
-                    if (l4hdr == NULL) {
-                        msg_send_to_self(&msg); /* requeue invalid messages */
-                        continue;
-                    }
-                    *port = byteorder_ntohs(((udp_hdr_t *)l4hdr->data)->src_port);
-                }
-#endif  /* defined(MODULE_CONN_UDP) */
-                if (addr != NULL) {
-                    memcpy(addr, &((ipv6_hdr_t *)l3hdr->data)->src, sizeof(ipv6_addr_t));
-                    *addr_len = sizeof(ipv6_addr_t);
-                }
-                memcpy(data, pkt->data, pkt->size);
-                size = pkt->size;
-                gnrc_pktbuf_release(pkt);
-                return (int)size;
-            default:
-                (void)port;
-                msg_send_to_self(&msg); /* requeue invalid messages */
-                break;
-        }
-    }
-    return -ETIMEDOUT;
-}
+#ifdef MODULE_XTIMER
+#define _TIMEOUT_MAGIC      (0xF38A0B63U)
+#define _TIMEOUT_MSG_TYPE   (0x8474)
 
-#ifdef MODULE_GNRC_IPV6
-bool gnrc_conn6_set_local_addr(uint8_t *conn_addr, const ipv6_addr_t *addr)
+static void _callback_put(void *arg)
 {
-    ipv6_addr_t *tmp;
-    if (!ipv6_addr_is_unspecified(addr) &&
-        !ipv6_addr_is_loopback(addr) &&
-        gnrc_ipv6_netif_find_by_addr(&tmp, addr) == KERNEL_PID_UNDEF) {
-        return false;
-    }
-    else if (ipv6_addr_is_loopback(addr) || ipv6_addr_is_unspecified(addr)) {
-        ipv6_addr_set_unspecified((ipv6_addr_t *)conn_addr);
-    }
-    else {
-        memcpy(conn_addr, addr, sizeof(ipv6_addr_t));
-    }
-    return true;
-}
+    msg_t timeout_msg = { .sender_pid = KERNEL_PID_UNDEF,
+                          .type = _TIMEOUT_MSG_TYPE,
+                          .content = { .value = _TIMEOUT_MAGIC } };
+    gnrc_conn_reg_t *reg = arg;
 
-ipv6_addr_t *conn_find_best_source(const ipv6_addr_t *dst)
-{
-    ipv6_addr_t *local = NULL;
-    gnrc_ipv6_netif_find_by_prefix(&local, dst);
-    return local;
+    /* should be safe, because otherwise if mbox were filled this callback is
+     * senseless */
+    mbox_try_put(&reg->mbox, &timeout_msg);
 }
 #endif
+
+void gnrc_conn_create(gnrc_conn_reg_t *reg, gnrc_nettype_t type, uint32_t demux_ctx)
+{
+    mbox_init(&reg->mbox, reg->mbox_queue, CONN_MBOX_SIZE);
+    gnrc_netreg_entry_init_mbox(&reg->entry, demux_ctx, &reg->mbox);
+    gnrc_netreg_register(type, &reg->entry);
+}
+
+int gnrc_conn_recv(gnrc_conn_reg_t *reg, gnrc_pktsnip_t **pkt_out,
+                   uint32_t timeout, conn_ep_ip_t *remote)
+{
+    gnrc_pktsnip_t *pkt, *ip, *netif;
+    msg_t msg;
+
+#ifdef MODULE_XTIMER
+    xtimer_t timeout_timer;
+
+    if (timeout > 0) {
+        timeout_timer.callback = _callback_put;
+        timeout_timer.arg = reg;
+        xtimer_set(&timeout_timer, timeout);
+    }
+#else
+    assert(timeout == 0);
+#endif
+    mbox_get(&reg->mbox, &msg);
+#ifdef MODULE_XTIMER
+    xtimer_remove(&timeout_timer);
+#endif
+    switch (msg.type) {
+        case GNRC_NETAPI_MSG_TYPE_RCV:
+            pkt = msg.content.ptr;
+            break;
+#ifdef MODULE_XTIMER
+        case _TIMEOUT_MSG_TYPE:
+            if (msg.content.value == _TIMEOUT_MAGIC) {
+                return -ETIMEDOUT;
+            }
+#endif
+        default:
+            return -EINTR;
+    }
+    /* TODO: discern NETTYPE from remote->family (set in caller), when IPv4
+     * was implemented */
+    ipv6_hdr_t *ipv6_hdr;
+    ip = gnrc_pktsnip_search_type(pkt, GNRC_NETTYPE_IPV6);
+    assert((ip != NULL) && (ip->size >= 40));
+    ipv6_hdr = ip->data;
+    memcpy(&remote->addr, &ipv6_hdr->src, sizeof(ipv6_addr_t));
+    remote->family = AF_INET6;
+    netif = gnrc_pktsnip_search_type(pkt, GNRC_NETTYPE_NETIF);
+    if (netif == NULL) {
+        remote->netif = CONN_EP_ANY_NETIF;
+    }
+    else {
+        gnrc_netif_hdr_t *netif_hdr = netif->data;
+        /* TODO: use API in #5511 */
+        remote->netif = (uint16_t)netif_hdr->if_pid;
+    }
+    *pkt_out = pkt; /* set out parameter */
+    return 0;
+}
+
+int gnrc_conn_send(gnrc_pktsnip_t *payload, conn_ep_ip_t *local,
+                   const conn_ep_ip_t *remote, uint8_t nh)
+{
+    gnrc_pktsnip_t *pkt;
+    ipv6_hdr_t *hdr;
+    kernel_pid_t iface = KERNEL_PID_UNDEF;
+    gnrc_nettype_t type = payload->type;
+    size_t payload_len = gnrc_pkt_len(payload);
+
+    if (local->family != remote->family) {
+        gnrc_pktbuf_release(payload);
+        return -EAFNOSUPPORT;
+    }
+    switch (local->family) {
+#ifdef CONN_HAS_IPV6
+        case AF_INET6:
+            pkt = gnrc_ipv6_hdr_build(payload, &local->addr.ipv6,
+                                      &remote->addr.ipv6);
+            if (pkt == NULL) {
+                return -ENOMEM;
+            }
+            if (payload->type == GNRC_NETTYPE_UNDEF) {
+                payload->type = GNRC_NETTYPE_IPV6;
+            }
+            hdr = pkt->data;
+            hdr->nh = nh;
+            break;
+#endif
+        default:
+            gnrc_pktbuf_release(payload);
+            return -EAFNOSUPPORT;
+    }
+    if (local->netif != CONN_EP_ANY_NETIF) {
+        /* TODO: use API in #5511 */
+        iface = (kernel_pid_t)local->netif;
+    }
+    else if (remote->netif != CONN_EP_ANY_NETIF) {
+        /* TODO: use API in #5511 */
+        iface = (kernel_pid_t)remote->netif;
+    }
+    if (iface != KERNEL_PID_UNDEF) {
+        gnrc_pktsnip_t *netif = gnrc_netif_hdr_build(NULL, 0, NULL, 0);
+        gnrc_netif_hdr_t *netif_hdr;
+
+        if (netif == NULL) {
+            gnrc_pktbuf_release(pkt);
+            return -ENOMEM;
+        }
+        netif_hdr = netif->data;
+        netif_hdr->if_pid = iface;
+        LL_PREPEND(pkt, netif);
+    }
+#ifdef MODULE_GNRC_NETERR
+    gnrc_neterr_reg(pkt);   /* no error should occur since pkt was created here */
+#endif
+    if (!gnrc_netapi_dispatch_send(type, GNRC_NETREG_DEMUX_CTX_ALL, pkt)) {
+        /* this should not happen, but just in case */
+        gnrc_pktbuf_release(pkt);
+        return -EBADMSG;
+    }
+#ifdef MODULE_GNRC_NETERR
+    msg_t err_report;
+    err_report.type = 0;
+
+    while (err_report.type != GNRC_NETERR_MSG_TYPE) {
+        msg_try_receive(err_report);
+        if (err_report.type != GNRC_NETERR_MSG_TYPE) {
+            msg_try_send(err_report, sched_active_pid);
+        }
+    }
+    if (err_report.content.value != GNRC_NETERR_SUCCESS) {
+        return (int)(-err_report.content.value);
+    }
+#endif
+    return payload_len;
+}
 
 /** @} */

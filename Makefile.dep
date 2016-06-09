@@ -52,6 +52,15 @@ endif
 
 ifneq (,$(filter gnrc_conn_udp,$(USEMODULE)))
   USEMODULE += gnrc_udp
+  USEMODULE += random     # to generate random ports
+endif
+
+ifneq (,$(filter gnrc_conn,$(USEMODULE)))
+  USEMODULE += gnrc_netreg_extra
+endif
+
+ifneq (,$(filter gnrc_netreg_extra,$(USEMODULE)))
+  USEMODULE += core_mbox
 endif
 
 ifneq (,$(filter netdev2_tap,$(USEMODULE)))

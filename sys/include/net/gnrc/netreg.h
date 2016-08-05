@@ -136,7 +136,7 @@ typedef void (*gnrc_netreg_entry_cb_t)(uint16_t cmd, gnrc_pktsnip_t *pkt,
 typedef struct {
     gnrc_netreg_entry_cb_t cb;  /**< the callback */
     void *ctx;                  /**< application context for the callback */
-} gnrc_netreg_entry_cbd_t
+} gnrc_netreg_entry_cbd_t;
 #endif
 
 /**

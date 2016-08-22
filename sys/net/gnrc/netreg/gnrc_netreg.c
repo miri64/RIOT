@@ -37,8 +37,17 @@ void gnrc_netreg_init(void)
 
 int gnrc_netreg_register(gnrc_nettype_t type, gnrc_netreg_entry_t *entry)
 {
+#ifdef MODULE_GNRC_NETREG_EXTRA
+#ifdef DEVELHELP
+    if (entry->type == GNRC_NETREG_TYPE_DEFAULT) {
+        /* only threads with a message queue are allowed to register at gnrc */
+        assert(sched_threads[entry->target.pid]->msg_array);
+    }
+#endif
+#else
     /* only threads with a message queue are allowed to register at gnrc */
-    assert(sched_threads[entry->pid]->msg_array);
+    assert(sched_threads[entry->target.pid]->msg_array);
+#endif
 
     if (_INVALID_TYPE(type)) {
         return -EINVAL;

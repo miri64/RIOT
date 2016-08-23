@@ -48,64 +48,45 @@ typedef struct _sock_tl_ep sock_tcp_ep_t;   /**< An end point for a TCP sock obj
 typedef struct sock_tcp sock_tcp_t;
 
 /**
- * @brief   Implementation-specific type of a TCP listening queue
+ * @brief Initializes a socket object.
  *
- * `struct sock_tcp_queue` needs to be defined by stack-specific
- * `sock_types.h`.
+ * @pre 'sock != NULL'
+ *
+ * @param[out]         The resulting sock object.
+ *
+ * @return   0 on success
+ * @return   -ENOMEM, if the system was not able to allocate sufficient memory.
  */
-typedef struct sock_tcp_queue sock_tcp_queue_t;
+int sock_tcp_init(sock_tcp_t *sock);
 
 /**
  * @brief   Establishes a new TCP sock connection
  *
  * @pre `sock != NULL`
- * @pre `remote != NULL`
- * @pre `local_port != 0`
  *
  * @param[out] sock     The resulting sock object.
  * @param[in] remote    Remote end point for the sock object.
+                        Must be not NULL for an active connection.
+ * @param[in] local     Local end point for the sock object.
+                        Must be not NULL for an passive connection.
  * @param[in] flags     Flags for the sock object. See also @ref net_sock_flags.
  *                      May be 0.
  *
  * @return  0 on success.
  * @return  -EADDRINUSE, if `(flags & SOCK_FLAGS_REUSE_EP) == 0` and
- *          @p local_port is already used elsewhere
- * @return  -EAFNOSUPPORT, if sock_tcp_ep_t::family of @p remote is not
+ *          the port number in @p local is already used elsewhere
+ * @return  -EAFNOSUPPORT, if sock_tcp_ep_t::family of @p remote or @p local is not
  *          supported.
  * @return  -ECONNREFUSED, if no-one is listening on the @p remote end point.
  * @return  -EINVAL, if sock_tcp_ep_t::netif of @p remote is not a valid
  *          interface.
  * @return  -ENETUNREACH, if network defined by @p remote is not reachable.
- * @return  -ENOMEM, if system was not able to allocate sufficient memory to
- *          establish connection.
  * @return  -EPERM, if connections to @p remote are not permitted on the system
  *          (e.g. by firewall rules).
  * @return  -ETIMEDOUT, if the connection attempt to @p remote timed out.
  */
 int sock_tcp_connect(sock_tcp_t *sock, const sock_tcp_ep_t *remote,
-                     uint16_t local_port, uint16_t flags);
-
-/**
- * @brief   Listen for an incoming connection request on @p local end point
- *
- * @param[in] queue         The resulting listening queue.
- * @param[in] remote        Local end point to listen on.
- * @param[in] queue_array   Array of sock objects.
- * @param[in] queue_len     Length of @p queue_array.
- * @param[in] flags         Flags for the listening queue. See also
- *                          @ref net_sock_flags. May be 0.
- *
- * @return  0 on success.
- * @return  -EADDRINUSE, if `(flags & SOCK_FLAGS_REUSE_EP) == 0` and
- *          @p local_port is already used elsewhere
- * @return  -EAFNOSUPPORT, if sock_tcp_ep_t::family of @p local is not
- *          supported.
- * @return  -EINVAL, if sock_tcp_ep_t::netif of @p local is not a valid
- *          interface.
- */
-int sock_tcp_listen(sock_tcp_queue_t *queue, const sock_tcp_ep_t *local,
-                    sock_tcp_t[] queue_array, unsigned queue_len,
-                    uint16_t flags);
+                     const sock_tcp_ep_t *local, uint16_t flags);
 
 /**
  * @brief   Disconnects a TCP connection
@@ -113,15 +94,20 @@ int sock_tcp_listen(sock_tcp_queue_t *queue, const sock_tcp_ep_t *local,
  * @pre `(sock != NULL)`
  *
  * @param[in] sock  A TCP sock object.
+ *
+ * @return  0 on success.
+ * @return  -ETIMEDOUT, if the disconnect attempt to @p remote timed out.
  */
-void sock_tcp_disconnect(sock_tcp_t *sock);
+int sock_tcp_disconnect(sock_tcp_t *sock);
 
 /**
- * @brief   Stops listening on TCP listening queue
+ * @brief   Releases resources used by sock.
  *
- * @param[in] queue A TCP listening queue.
+ * @pre '(sock != NULL)'
+ *
+ * @param[in] sock   A TCP sock object.
  */
-void sock_tcp_stop_listen(sock_tcp_queue_t *queue);
+void sock_tcp_release(sock_tcp_t *sock);
 
 /**
  * @brief   Gets the local end point of a TCP sock object
@@ -150,24 +136,6 @@ int sock_tcp_get_local(sock_tcp_t *sock, sock_tcp_ep_t *ep);
 int sock_tcp_get_remote(sock_tcp_t *sock, sock_tcp_ep_t *ep);
 
 /**
- * @brief   Receives and handles TCP connection requests from other peers
- *
- * @pre `(queue != NULL) && (sock != NULL)`
- *
- * @param[in] sock      A TCP listening queue.
- * @param[out] out_sock A new TCP sock object for the established
- *                      sock object.
- *
- * @return  0 on success.
- * @return  -ENOMEM, if system was not able to allocate sufficient memory to
- *          establish connection.
- * @return  -EPERM, if connections on local end point of @p queue are not
- *          permitted on this system (e.g. by firewall rules).
- * @return  -ETIMEDOUT, if the operation timed out stack-internally.
- */
-int sock_tcp_accept(sock_tcp_queue_t *queue, sock_tcp_t **sock);
-
-/**
  * @brief   Reads data from an established TCP stream
  *
  * @pre `(sock != NULL) && (data != NULL) && (max_len > 0)`
@@ -179,18 +147,17 @@ int sock_tcp_accept(sock_tcp_queue_t *queue, sock_tcp_t **sock);
  *                      truncated and the remaining data can be retrieved
  *                      later on.
  * @param[in] timeout   Timeout for receive in microseconds.
- *                      This value can be ignored (no timeout) if the
- *                      @ref sys_xtimer module is not present and the stack does
- *                      not support timeouts on its own.
+ *                      Must be less than the TCP User Space Timeout.
  *                      May be 0 for no timeout.
  *
  * @note    Function may block.
  *
  * @return  The number of bytes read on success.
  * @return  0, if no read data is available, but everything is in order.
- * @return  -EADDRNOTAVAIL, if local of @p sock is not given.
  * @return  -ECONNREFUSED, if remote end point of @p sock refused to allow the
  *          connection.
+ * @retunr  -EINVAL, when the specified timeout is larger that the TCP User
+            Space Timeout.
  * @return  -ENOTCONN, when @p sock is not connected to a remote end point.
  * @return  -ETIMEDOUT, if @p timeout expired.
  */
@@ -200,7 +167,7 @@ ssize_t sock_tcp_read(sock_tcp_t *sock, void *data, size_t max_len,
 /**
  * @brief   Writes data to an established TCP stream
  *
- * @pre `(sock != NULL) && (data != NULL) && (max > 0)`
+ * @pre `(sock != NULL) && (data != NULL) && (len > 0)`
  *
  * @param[in] sock  A TCP sock object.
  * @param[in] data  Pointer to the data to be written to the stream.

@@ -1,11 +1,11 @@
 PKG_NAME=ccn-lite
-PKG_URL=https://github.com/cgundogan/ccn-lite/
+PKG_URL=https://github.com/5G-I3/ccn-lite/
 PKG_VERSION=1734aea61ae448db90269a91393c0232d4bab23c
 PKG_LICENSE=ISC
 
 include $(RIOTBASE)/pkg/pkg.mk
 
-.PHONY: ..cmake_version_supported
+.PHONY: ..cmake_version_supported FORCE
 
 CMAKE_MINIMAL_VERSION = 3.6.0
 

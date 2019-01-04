@@ -146,7 +146,7 @@ int gnrc_netif_ipv6_iid_from_addr(const gnrc_netif_t *netif,
                 else {
                     return -EINVAL;
                 }
-#endif  /* defined(MODULE_NETDEV_ETH) || defined(MODULE_ESP_NOW) */
+#endif  /* defined(MODULE_NETDEV_ETH) */
 #if defined(MODULE_NETDEV_IEEE802154) || defined(MODULE_XBEE) || defined(MODULE_ESP_NOW)
             case NETDEV_TYPE_IEEE802154:
                 if (ieee802154_get_iid(iid, addr, addr_len) != NULL) {
@@ -155,7 +155,7 @@ int gnrc_netif_ipv6_iid_from_addr(const gnrc_netif_t *netif,
                 else {
                     return -EINVAL;
                 }
-#endif  /* defined(MODULE_NETDEV_IEEE802154) || defined(MODULE_XBEE) */
+#endif  /* defined(MODULE_NETDEV_IEEE802154) || defined(MODULE_XBEE) || defined(MODULE_ESP_NOW) */
 #ifdef MODULE_NORDIC_SOFTDEVICE_BLE
             case NETDEV_TYPE_BLE:
                 if (addr_len == sizeof(eui64_t)) {

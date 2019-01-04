@@ -136,7 +136,7 @@ int gnrc_netif_ipv6_iid_from_addr(const gnrc_netif_t *netif,
 #if GNRC_NETIF_L2ADDR_MAXLEN > 0
     if (netif->flags & GNRC_NETIF_FLAGS_HAS_L2ADDR) {
         switch (netif->device_type) {
-#if defined(MODULE_NETDEV_ETH) || defined(MODULE_ESP_NOW)
+#if defined(MODULE_NETDEV_ETH)
             case NETDEV_TYPE_ETHERNET:
             case NETDEV_TYPE_ESP_NOW:
                 if (addr_len == sizeof(eui48_t)) {
@@ -147,7 +147,7 @@ int gnrc_netif_ipv6_iid_from_addr(const gnrc_netif_t *netif,
                     return -EINVAL;
                 }
 #endif  /* defined(MODULE_NETDEV_ETH) || defined(MODULE_ESP_NOW) */
-#if defined(MODULE_NETDEV_IEEE802154) || defined(MODULE_XBEE)
+#if defined(MODULE_NETDEV_IEEE802154) || defined(MODULE_XBEE) || defined(MODULE_ESP_NOW)
             case NETDEV_TYPE_IEEE802154:
                 if (ieee802154_get_iid(iid, addr, addr_len) != NULL) {
                     return sizeof(eui64_t);

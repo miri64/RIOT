@@ -1,4 +1,4 @@
-PKG_SOURCE_LOCAL ?= $(RIOTBASE)/../ccn-lite2
+PKG_SOURCE_LOCAL ?= $(RIOTBASE)/../ccn-lite
 PKG_NAME=ccn-lite
 PKG_URL=https://github.com/cgundogan/ccn-lite/
 PKG_VERSION=c0d4bbc46efc9d4a05501f8522a31782ca5a0901

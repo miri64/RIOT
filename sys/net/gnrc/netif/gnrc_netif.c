@@ -35,6 +35,10 @@
 #include "net/gnrc/netif.h"
 #include "net/gnrc/netif/internal.h"
 
+#ifdef CCNL_RIOT
+extern uint32_t netdev_evt_tx_noack;
+#endif
+
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
 
@@ -1427,6 +1431,11 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                  * so no acquire necessary */
                 netif->stats.tx_success++;
                 break;
+#ifdef CCNL_RIOT
+            case NETDEV_EVENT_TX_NOACK:
+                netdev_evt_tx_noack++;
+                break;
+#endif
 #endif
             default:
                 DEBUG("gnrc_netif: warning: unhandled event %u.\n", event);

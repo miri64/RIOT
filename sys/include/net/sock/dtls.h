@@ -313,8 +313,8 @@
  *
  *     end:
  *         puts("Terminating");
- *         sock_dtls_close_session(&dtls_sock, &session);
- *         sock_dtls_destroy(&dtls_sock);
+ *         sock_dtls_terminate_session(&dtls_sock, &session);
+ *         sock_dtls_close(&dtls_sock);
  *  }
  * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -349,9 +349,9 @@
  * successfull and the session is established, we can use its `remote` to send
  * packets to it with @ref sock_dtls_send().
  *
- * If error during any of these operation, the session is closed and the sock
- * is destroyed using @ref sock_dtls_close_session() and
- * @ref sock_dtls_destroy().
+ * If error during any of these operation, the session is terminated and the sock
+ * is closed using @ref sock_dtls_terminate_session() and
+ * @ref sock_dtls_close().
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * res = sock_dtls_create(&dtls_sock, &udp_sock, DTLS_SOCK_CLIENT_TAG, 0);
@@ -380,8 +380,8 @@
  *
  * end:
  * puts("Terminating");
- * sock_dtls_close_session(&dtls_sock, &session);
- * sock_dtls_destroy(&dtls_sock);
+ * sock_dtls_terminate_session(&dtls_sock, &session);
+ * sock_dtls_close(&dtls_sock);
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * @{
@@ -417,9 +417,7 @@ extern "C" {
 typedef struct sock_dtls sock_dtls_t;
 
 /**
- * @brief Information about the established session with
- *        the remote endpoint. Used when sending and
- *        receiving data to the endpoint
+ * @brief Information about an established session with a remote endpoint.
  */
 typedef struct sock_dtls_session sock_dtls_session_t;
 
@@ -451,8 +449,9 @@ int sock_dtls_create(sock_dtls_t *sock, sock_udp_t *udp_sock,
 void sock_dtls_init_server(sock_dtls_t *sock);
 
 /**
- * @brief Establish DTLS session to a server. Execute the handshake step in
- *        DTLS.
+ * @brief Establish DTLS session with a server.
+ *
+ * Initializes handshake process with a DTLS server @p ep.
  *
  * @param[in]  sock     DLTS sock to use
  * @param[in]  ep       Endpoint to establish session with
@@ -472,14 +471,14 @@ int sock_dtls_establish_session(sock_dtls_t *sock, sock_udp_ep_t *ep,
                                 sock_dtls_session_t *remote);
 
 /**
- * @brief Close an existing DTLS session
+ * @brief Terminates an existing DTLS session
  *
  * @pre `(sock != NULL) && (ep != NULL)`
  *
  * @param[in] sock      @ref sock_dtls_t, which the session is established on
- * @param[in] remote    Remote session to close
+ * @param[in] remote    Remote session to terminate
  */
-void sock_dtls_close_session(sock_dtls_t *sock, sock_dtls_session_t *remote);
+void sock_dtls_terminate_session(sock_dtls_t *sock, sock_dtls_session_t *remote);
 
 /**
  * @brief Decrypts and reads a message from a remote peer.
@@ -539,13 +538,13 @@ ssize_t sock_dtls_send(sock_dtls_t *sock, sock_dtls_session_t *remote,
                        const void *data, size_t len);
 
 /**
- * @brief Destroys DTLS sock created by `sock_dtls_create`
+ * @brief Closes a DTLS sock created by `sock_dtls_create`
  *
  * @pre `(sock != NULL)`
  *
- * @param sock          DTLS sock to destroy
+ * @param sock          DTLS sock to close
  */
-void sock_dtls_destroy(sock_dtls_t *sock);
+void sock_dtls_close(sock_dtls_t *sock);
 
 #include "sock_dtls_types.h"
 

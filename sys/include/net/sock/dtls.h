@@ -412,7 +412,7 @@ extern "C" {
  * @brief   Type for a DTLS sock object
  *
  * @note    API implementors: `struct sock_dtls` needs to be defined by
- *          implementation-specific `sock_dtls_types.h`.
+ *          an implementation-specific `sock_dtls_types.h`.
  */
 typedef struct sock_dtls sock_dtls_t;
 
@@ -432,7 +432,7 @@ void sock_dtls_init(void);
  * @brief Creates a new DTLS sock object
  *
  * @param[out] sock     The resulting DTLS sock object
- * @param[in] udp_sock  Existing UDP sock to be used
+ * @param[in] udp_sock  Existing UDP sock to be used underneath
  * @param[in] tag       Credential tag of the sock. Used to get the right
  *                      credential from pool.
  * @param[in] method    Defines the method for the client or server to use.
@@ -441,7 +441,7 @@ void sock_dtls_init(void);
  * @return  value < 0 on error
  */
 int sock_dtls_create(sock_dtls_t *sock, sock_udp_t *udp_sock,
-                     credman_tag_t tag,unsigned method);
+                     credman_tag_t tag, unsigned method);
 
 /**
  * @brief Initialises the server to listen for incoming connections
@@ -489,13 +489,13 @@ void sock_dtls_close_session(sock_dtls_t *sock, sock_dtls_session_t *remote);
  *                      Cannot be NULL.
  * @param[out] data     Buffer where the data should be stored.
  * @param[in] maxlen    Maximum memory available at @p data.
- * @param[in] timeout   Timeout for receive in microseconds.
+ * @param[in] timeout   Receive timeout in microseconds.
  *                      If 0 and no data is available, the function returns
  *                      immediately.
  *                      May be SOCK_NO_TIMEOUT to wait until data
  *                      is available.
  *
- * @note Function may block if data not available and @p timeout != 0
+ * @note Function may block if data is not available and @p timeout != 0
  *
  * @return The number of bytes received on success
  * @return value < 0 on error

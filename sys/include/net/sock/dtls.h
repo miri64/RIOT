@@ -422,7 +422,9 @@ typedef struct sock_dtls sock_dtls_t;
 typedef struct sock_dtls_session sock_dtls_session_t;
 
 /**
- * @brief Must be called once before any other use
+ * @brief Called exactly once during autoinit.
+ *
+ * Calls the initialization function required by the DTLS stack used.
  */
 void sock_dtls_init(void);
 
@@ -431,12 +433,12 @@ void sock_dtls_init(void);
  *
  * @param[out] sock     The resulting DTLS sock object
  * @param[in] udp_sock  Existing UDP sock to be used underneath
- * @param[in] tag       Credential tag of the sock. Used to get the right
- *                      credential from pool.
+ * @param[in] tag       Credential tag of the sock. The sock will only use
+ *                      credentials with the same tag given here.
  * @param[in] method    Defines the method for the client or server to use.
  *
  * @return  0 on success.
- * @return  value < 0 on error
+ * @return  -1 on error
  */
 int sock_dtls_create(sock_dtls_t *sock, sock_udp_t *udp_sock,
                      credman_tag_t tag, unsigned method);
@@ -458,8 +460,7 @@ void sock_dtls_init_server(sock_dtls_t *sock);
  * @param[out] remote   The established session, cannot be NULL
  *
  * @return  0 on success
- * @return  value < 0 on other errors
- * @return  -EAGAIN, if @p timeout is `0` and no data is available.
+ * @return  -EAGAIN, if DTLS_HANDSHAKE_TIMEOUT is `0` and no data is available.
  * @return  -EADDRNOTAVAIL, if the local endpoint of @p sock is not set.
  * @return  -EINVAL, if @p remote is invalid or @p sock is not properly
  *          initialized (or closed while sock_udp_recv() blocks).
@@ -486,8 +487,8 @@ void sock_dtls_terminate_session(sock_dtls_t *sock, sock_dtls_session_t *remote)
  * @param[in] sock      DTLS sock to use.
  * @param[out] remote   Remote DTLS session of the received data.
  *                      Cannot be NULL.
- * @param[out] data     Buffer where the data should be stored.
- * @param[in] maxlen    Maximum memory available at @p data.
+ * @param[out] data     Pointer where the received data should be stored.
+ * @param[in] maxlen    Maximum space available at @p data.
  * @param[in] timeout   Receive timeout in microseconds.
  *                      If 0 and no data is available, the function returns
  *                      immediately.
@@ -519,7 +520,8 @@ ssize_t sock_dtls_recv(sock_dtls_t *sock, sock_dtls_session_t *remote,
  * @param[in] data      Pointer where the data to be send are stored
  * @param[in] len       Length of @p data to be send
  *
- * @note Function may block
+ * @note Function may block until a session is established if there is no
+ *       existing session with @p remote.
  *
  * @return The number of bytes sent on success
  * @return value < 0 on error

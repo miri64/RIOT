@@ -36,23 +36,23 @@
  *
  * ## Makefile Includes
  *
- * First we need to @ref including-modules "include" a module that implements
+ * First we need to [include](@ref including-modules) a module that implements
  * this API in our applications Makefile. For example the implementation for
- * @ref pkg_tinydtls "tinydtls" is called `tinydtls_sock_dtls'.
+ * [tinydtls](@ref pkg_tinydtls) is called `tinydtls_sock_dtls'.
  *
- * The corresponding pkg providing the DTLS implementation will be
+ * The corresponding [pkg](@ref pkg) providing the DTLS implementation will be
  * automatically included so there is no need to use `USEPKG` to add the pkg
  * manually.
  *
  * Each DTLS implementation may have their own configuration options and caveat.
- * This can be found at @ref net_dtls "DTLS"
+ * This can be found at @ref net_dtls
  *
  * ### Adding credentials
  *
- * Before using this module, either as a server or a client, we need to first
+ * Before using this API, either as a server or a client, we need to first
  * add the credentials to be used for the encryption using
- * @ref net_credman "credman". Note that credman does not copies the credentials
- * given into the system, it only have information about the credentials and where
+ * [credman](@ref net_credman). Note that credman does not copy the credentials
+ * given into the system, it only has information about the credentials and where
  * it is located at. So it is your responsibility to make sure that the credential
  * is valid during the lifetime of your application.
  *
@@ -108,7 +108,7 @@
  *
  * Above we see an example how to register a PSK and a ECC credential.
  *
- * First we need to include the header file for @ref net_sock_dtls "DTLS sock".
+ * First we need to include the header file for the API.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * #include "net/credman.h"
@@ -129,15 +129,16 @@
  * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * We tell @ref net_credman "credman" which credential to add by filling in
- * the credentials information in a struct @ref credman_credential_t. We are
- * using `CREDMAN_TYPE_PSK` for credman_credential_t::type for PSK credential.
+ * We tell [credman](@ref net_credman) which credential to add by filling in
+ * the credentials information in a struct @ref credman_credential_t. For
+ * PSK credentials, we use enum @ref CREDMAN_TYPE_PSK for the
+ * [type](@ref credman_credential_t::type).
  *
- * Next we must assign a @ref credman_tag_t "tag" for the credential. Tags
+ * Next we must assign a [tag](@ref credman_tag_t) for the credential. Tags
  * are unsigned integer value that are used to identify which DTLS sock have
  * access to which credential. Each DTLS sock will also be assigned a tag.
  * As a result, a sock can only use credentials that have the same tag as
- * theirs.
+ * its assigned tag.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * res = credman_add(&psk_credential);
@@ -147,12 +148,12 @@
  * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * After credential infos are filled, we can add it to the credential pool using
- * `credman_add`.
+ * After credential informations are filled, we can add it to the credential
+ * pool using @ref credman_add().
  *
- * Adding credentials of other types are all the same to the above except
- * credman_credential_t::type and credman_credential_t::param depends on type of
- * credential used.
+ * For adding credentials of other types you can follow the steps above except
+ * credman_credential_t::type and credman_credential_t::params depend on the
+ * type of credential used.
  *
  * ### Server Operation
  *
@@ -215,16 +216,17 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * Using the initialised UDP sock, we can then create our DTLS sock. We use
- * `DTLS_SOCK_SERVER_TAG`, which is defined as `10` beforehand, as our tag.
- * The last parameter of `sock_dtls_create` is the DTLS version to be used.
+ * DTLS_SOCK_SERVER_TAG, that is defined as `10` in our application code
+ * beforehand, as our tag. The last parameter of @ref sock_dtls_create()
+ * is the DTLS version to be used.
  *
- * Note that some DTLS implementation does not support earlier versions of DTLS.
+ * Note that some DTLS implementation do not support earlier versions of DTLS.
  * We can see which version are supported by which DTLS implementation at this
- * @ref net_dtls "page".
+ * [page](@ref net_dtls).
  *
- * In case of error we stop the program.
+ * In case of error, the program is stopped.
  *
- * Then we call `sock_dtls_init_server` to initialize the server.
+ * Then we call @ref sock_dtls_init_server() to initialize the server.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * #define DTLS_SOCK_SERVER_TAG (10)
@@ -244,7 +246,7 @@
  * Now we can listen to incoming packets using @ref sock_dtls_recv(). The application
  * waits indefinitely for new packets. If we want to timeout this wait period
  * we could alternatively set the `timeout` parameter of the function to a value
- * != @ref SOCK_NO_TIMEOUT. If an error occur we just ignore it and continue looping.
+ * != @ref SOCK_NO_TIMEOUT. If an error occurs we just ignore it and continue looping.
  * We can reply to an incoming message using its `session`.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
@@ -331,12 +333,12 @@
  *
  * After that, we set the address of the remote endpoint where the packet is
  * supposed to be sent to and the port the server is listening to which is
- * DTLS_DEFAULT_PORT(20220).
+ * DTLS_DEFAULT_PORT (20220).
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * sock_udp_ep_t remote;
  * remote.port = DTLS_DEFAULT_PORT;
- * remote.netif = gnrc_netif_iter(NULL)->pid;   // only if gnrc_netif_numoff == 1
+ * remote.netif = gnrc_netif_iter(NULL)->pid;   // only if GNRC_NETIF_NUMOF == 1
  * if (!ipv6_addr_from_str((ipv6_addr_t *)remote.addr.ipv6, addr_str)) {
  *     puts("Error parsing destination address");
  *     return;
@@ -349,8 +351,8 @@
  * successfull and the session is established, we can use its `remote` to send
  * packets to it with @ref sock_dtls_send().
  *
- * If error during any of these operation, the session is terminated and the sock
- * is closed using @ref sock_dtls_terminate_session() and
+ * If an error occurs during any of these operation, the session is terminated
+ * and the sock is closed using @ref sock_dtls_terminate_session() and
  * @ref sock_dtls_close().
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
@@ -435,6 +437,7 @@ void sock_dtls_init(void);
  * @param[in] udp_sock  Existing UDP sock to be used underneath
  * @param[in] tag       Credential tag of the sock. The sock will only use
  *                      credentials with the same tag given here.
+ *                      @see net_credman.
  * @param[in] method    Defines the method for the client or server to use.
  *
  * @return  0 on success.

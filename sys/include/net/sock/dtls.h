@@ -148,7 +148,7 @@
  * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * After credential informations are filled, we can add it to the credential
+ * After credential information are filled, we can add it to the credential
  * pool using @ref credman_add().
  *
  * For adding credentials of other types you can follow the steps above except
@@ -433,11 +433,12 @@ void sock_dtls_init(void);
 /**
  * @brief Creates a new DTLS sock object
  *
+ * @see net_credman.
+ *
  * @param[out] sock     The resulting DTLS sock object
  * @param[in] udp_sock  Existing UDP sock to be used underneath
  * @param[in] tag       Credential tag of the sock. The sock will only use
  *                      credentials with the same tag given here.
- *                      @see net_credman.
  * @param[in] method    Defines the method for the client or server to use.
  *
  * @return  0 on success.
@@ -505,7 +506,7 @@ void sock_dtls_terminate_session(sock_dtls_t *sock, sock_dtls_session_t *remote)
  * @return  -EADDRNOTAVAIL, if the local endpoint of @p sock is not set.
  * @return  -EAGAIN, if @p timeout is `0` and no data is available.
  * @return  -EINVAL, if @p remote is invalid or @p sock is not properly
- *          initialized (or closed while sock_udp_recv() blocks).
+ *          initialized (or closed while sock_dtls_recv() blocks).
  * @return  -ENOBUFS, if buffer space is not large enough to store received
  *          data.
  * @return  -ENOMEM, if no memory was available to receive @p data.

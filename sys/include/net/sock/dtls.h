@@ -1,5 +1,9 @@
 /*
  * Copyright (C) 2019 HAW Hamburg
+ *                    Freie Universität Berlin
+ *                    Inria
+ *                    Daniele Lacamera
+ *                    Ken Bannister
  *
  * This file is subject to the terms and conditions of the GNU Lesser
  * General Public License v2.1. See the file LICENSE in the top level
@@ -392,6 +396,10 @@
  * @brief   DTLS sock definitions
  *
  * @author  Aiman Ismail <muhammadaimanbin.ismail@haw-hamburg.de>
+ * @author  Martine Lenders <m.lenders@fu-berlin.de>
+ * @author  Raul A. Fuentes Samaniego <raul.fuentes-samaniego@inria.fr>
+ * @author  Daniele Lacamera <daniele@wolfssl.com>
+ * @author  Ken Bannister <kb2ma@runbox.com>
  */
 
 #ifndef NET_SOCK_DTLS_H

@@ -423,8 +423,9 @@ extern "C" {
  * @anchor sock_dtls_prot_version
  * @{
  */
-#define DTLSv1_0    (1)    /**< DTLS version 1.0 */
-#define DTLSv1_2    (2)    /**< DTLS version 1.2 */
+#define SOCK_DTLS_1_0    (1)    /**< DTLS version 1.0 */
+#define SOCK_DTLS_1_2    (2)    /**< DTLS version 1.2 */
+#define SOCK_DTLS_1_3    (3)    /**< DTLS version 1.3 */
 /** @} */
 
 /**
@@ -432,8 +433,8 @@ extern "C" {
  * @anchor sock_dtls_role
  * @{
  */
-#define DTLS_CLIENT (1),    /**< Endpoint client role */
-#define DTLS_SERVER (2),    /**< Endpoint server role */
+#define SOCK_DTLS_CLIENT (1),    /**< Endpoint client role */
+#define SOCK_DTLS_SERVER (2),    /**< Endpoint server role */
 /** @} */
 
 /**

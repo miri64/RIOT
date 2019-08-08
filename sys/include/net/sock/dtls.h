@@ -419,25 +419,40 @@ extern "C" {
 #endif
 
 /**
- * @brief Protocol version number
+ * @name DTLS version number
+ * @anchor sock_dtls_prot_version
+ * @{
  */
-typedef struct {
-    uint8_t major;  /**< Major version number */
-    uint8_t minor;  /**< Minor version number */
-} ProtocolVersion;
+#define DTLSv1_0    (1)    /**< DTLS version 1.0 */
+#define DTLSv1_2    (2)    /**< DTLS version 1.2 */
+/** @} */
 
-#define DTLSv1      {254, 255}  /**< DTLS 1.0 version RFC4347#Section-4.1 */
-#define DTLSv1_2    {254, 253}  /**< DTLS 1.2 version RFC6347#Section-4.1 */
-
+/**
+ * @name DTLS role
+ * @anchor sock_dtls_role
+ * @{
+ */
 #define DTLS_CLIENT (1),    /**< Endpoint client role */
-#define DTLS_SERVER (2),    /**< Endpoing server role */
+#define DTLS_SERVER (2),    /**< Endpoint server role */
+/** @} */
 
 /**
  * @brief Method of connecting to remote
  */
 typedef struct {
-    ProtocolVersion version;    /**< DTLS version number */
-    uint8_t role;               /**< Role of the endpoint */
+    /**
+     * @brief DTLS version number
+     *
+     * @see [DTLS version number](@ref sock_dtls_prot_version)
+     */
+    uint8_t dtls_version;
+
+    /**
+     * @brief DTLS role
+     *
+     * @see [DTLS role](@ref sock_dtls_role)
+     */
+    uint8_t role;
 } sock_dtls_method_t;
 
 /**

@@ -419,6 +419,28 @@ extern "C" {
 #endif
 
 /**
+ * @brief Protocol version number
+ */
+typedef struct {
+    uint8_t major;  /**< Major version number */
+    uint8_t minor;  /**< Minor version number */
+} ProtocolVersion;
+
+#define DTLSv1      {254, 255}  /**< DTLS 1.0 version RFC4347#Section-4.1 */
+#define DTLSv1_2    {254, 253}  /**< DTLS 1.2 version RFC6347#Section-4.1 */
+
+#define DTLS_CLIENT (1),    /**< Endpoint client role */
+#define DTLS_SERVER (2),    /**< Endpoing server role */
+
+/**
+ * @brief Method of connecting to remote
+ */
+typedef struct {
+    ProtocolVersion version;    /**< DTLS version number */
+    uint8_t role;               /**< Role of the endpoint */
+} sock_dtls_method_t;
+
+/**
  * @brief   Type for a DTLS sock object
  *
  * @note    API implementors: `struct sock_dtls` needs to be defined by
@@ -452,13 +474,14 @@ void sock_dtls_init(void);
  *                      @ref sock_udp_create()to be used underneath.
  * @param[in] tag       Credential tag of the sock. The sock will only use
  *                      credentials with the same tag given here.
- * @param[in] method    Defines the method for the client or server to use.
+ * @param[in] method    Defines the role of the endpoint and the DTLS version
+ *                      to use.
  *
  * @return  0 on success.
  * @return  -1 on error
  */
 int sock_dtls_create(sock_dtls_t *sock, sock_udp_t *udp_sock,
-                     credman_tag_t tag, unsigned method);
+                     credman_tag_t tag, sock_dtls_method_t method);
 
 /**
  * @brief Initialises the server to listen for incoming connections

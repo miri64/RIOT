@@ -500,13 +500,6 @@ int sock_dtls_create(sock_dtls_t *sock, sock_udp_t *udp_sock,
                      credman_tag_t tag, sock_dtls_method_t method);
 
 /**
- * @brief Initialises the server to listen for incoming connections
- *
- * @param[in] sock      DTLS sock to listen to
- */
-void sock_dtls_init_server(sock_dtls_t *sock);
-
-/**
  * @brief Establish DTLS session with a server.
  *
  * Initializes handshake process with a DTLS server @p ep.

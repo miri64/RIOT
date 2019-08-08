@@ -433,28 +433,9 @@ extern "C" {
  * @anchor sock_dtls_role
  * @{
  */
-#define SOCK_DTLS_CLIENT (1),    /**< Endpoint client role */
-#define SOCK_DTLS_SERVER (2),    /**< Endpoint server role */
+#define SOCK_DTLS_CLIENT (1)    /**< Endpoint client role */
+#define SOCK_DTLS_SERVER (2)    /**< Endpoint server role */
 /** @} */
-
-/**
- * @brief Method of connecting to remote
- */
-typedef struct {
-    /**
-     * @brief DTLS version number
-     *
-     * @see [DTLS version number](@ref sock_dtls_prot_version)
-     */
-    uint8_t dtls_version;
-
-    /**
-     * @brief DTLS role
-     *
-     * @see [DTLS role](@ref sock_dtls_role)
-     */
-    uint8_t role;
-} sock_dtls_method_t;
 
 /**
  * @brief   Type for a DTLS sock object
@@ -490,14 +471,14 @@ void sock_dtls_init(void);
  *                      @ref sock_udp_create()to be used underneath.
  * @param[in] tag       Credential tag of the sock. The sock will only use
  *                      credentials with the same tag given here.
- * @param[in] method    Defines the role of the endpoint and the DTLS version
- *                      to use.
+ * @param[in] version   [DTLS version](@ref sock_dtls_prot_version) to use.
+ * @param[in] role      [Role](@ref sock_dtls_role) of the endpoint.
  *
  * @return  0 on success.
  * @return  -1 on error
  */
 int sock_dtls_create(sock_dtls_t *sock, sock_udp_t *udp_sock,
-                     credman_tag_t tag, sock_dtls_method_t method);
+                     credman_tag_t tag, unsigned version, unsigned role);
 
 /**
  * @brief Establish DTLS session with a server.

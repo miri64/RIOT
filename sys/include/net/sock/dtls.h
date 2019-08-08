@@ -441,10 +441,15 @@ void sock_dtls_init(void);
 /**
  * @brief Creates a new DTLS sock object
  *
+ * Takes an initialized UDP sock and uses it for the transport.
+ * Memory allocation functions required by the underlying DTLS
+ * stack can be called in this function.
+ *
  * @see net_credman.
  *
  * @param[out] sock     The resulting DTLS sock object
- * @param[in] udp_sock  Existing UDP sock to be used underneath
+ * @param[in] udp_sock  Existing UDP sock initialized with
+ *                      @ref sock_udp_create()to be used underneath.
  * @param[in] tag       Credential tag of the sock. The sock will only use
  *                      credentials with the same tag given here.
  * @param[in] method    Defines the method for the client or server to use.
@@ -552,7 +557,12 @@ ssize_t sock_dtls_send(sock_dtls_t *sock, sock_dtls_session_t *remote,
                        const void *data, size_t len);
 
 /**
- * @brief Closes a DTLS sock created by `sock_dtls_create`
+ * @brief Closes a DTLS sock
+ *
+ * Releases any memory allocated by @ref sock_dtls_create(). This function does
+ * NOT closes the UDP sock used by the DTLS sock. After the call to this
+ * function, user will have to call @ref sock_udp_close() to close the UDP
+ * sock.
  *
  * @pre `(sock != NULL)`
  *

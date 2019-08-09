@@ -29,11 +29,11 @@
  *   2. Add the credential using @ref credman_add()
  * - Server operation
  *   1. Create UDP sock @ref sock_udp_create()
- *   2. Create DTLS sock @ref sock_dtls_create()
+ *   2. Create DTLS sock @ref sock_dtls_create() using role @ref SOCK_DTLS_SERVER
  *   3. Start listening with @ref sock_dtls_recv()
  * - Client operation
  *   1. Create UDP sock @ref sock_udp_create()
- *   2. Create DTLS sock @ref sock_dtls_create()
+ *   2. Create DTLS sock @ref sock_dtls_create() using role @ref SOCK_DTLS_CLIENT
  *   3. Create session to server @ref sock_dtls_session_create()
  *   4. Send packet to server @ref sock_dtls_send()
  *
@@ -59,8 +59,6 @@
  * given into the system, it only has information about the credentials and
  * where it is located at. So it is your responsibility to make sure that the
  * credential is valid during the lifetime of your application.
- *
- * Instruction on how to generate the credentials can be found here [TODO].
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * #include <stdio.h>
@@ -226,9 +224,9 @@
  *
  * This is an example of a DTLS echo server.
  *
- * To create a DTLS sock, we first need to have an initialized UDP sock.
- * DTLS sock will inherit the port from given UDP sock. So the port to be used
- * later to listen to incoming DTLS packets will need to be set here already.
+ * DTLS sock uses an initialized UDP sock to send and receive encrypted
+ * packets. Therefore, the listening port for the server also need to be
+ * set here.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * sock_udp_t udp_sock;
@@ -245,7 +243,7 @@
  * beforehand, as our tag. Using @ref SOCK_DTLS_1_2 and @ref SOCK_DTLS_SERVER
  * we set our DTLS endpoint to use DTLS version 1.2 and act as a DTLS server.
  *
- * Note that some DTLS implementation does not support earlier versions of DTLS.
+ * Note that some DTLS implementation do not support earlier versions of DTLS.
  * In this case, @ref sock_dtls_create() will return an error. A list of
  * supported DTLS version for each DTLS implementation can be found at this
  * [page](@ref net_dtls). In case of error, the program is stopped.
@@ -266,7 +264,7 @@
  *
  * Now we can listen to incoming packets using @ref sock_dtls_recv(). The
  * application waits indefinitely for new packets. If we want to timeout this
- * waiting period we could alternatively set the `timeout` parameter of the
+ * wait period we could alternatively set the `timeout` parameter of the
  * function to a value != @ref SOCK_NO_TIMEOUT. If an error occurs we just
  * ignore it and continue looping. We can reply to an incoming message using
  * its `session`.
@@ -280,7 +278,7 @@
  *     res = sock_dtls_recv(&dtls_sock, &session, buf, sizeof(buf),
  *                          SOCK_NO_TIMEOUT);
  *     if (res > 0) {
- *         printf("Received %d bytes: %s -- echo!\n", res, buf);
+ *         printf("Received %d bytes: %*.s -- echo!\n", res, res, buf);
  *         if (sock_dtls_send(&dtls_sock, &session, buf, res) < 0) {
  *             puts("Error sending reply");
  *         }
@@ -419,7 +417,7 @@
  * }
  *
  * if (sock_dtls_session_create(&dtls_sock, &remote, &session) < 0) {
- *     printf("Error creating session: %d\n", (int)res);
+ *     puts("Error creating session");
  *     sock_dtls_close(&dtls_sock);
  *     sock_udp_close(&udp_sock);
  *     return -1;
@@ -473,22 +471,26 @@ extern "C" {
 #endif
 
 /**
- * @name DTLS version number
+ * @brief DTLS version number
  * @anchor sock_dtls_prot_version
  * @{
  */
-#define SOCK_DTLS_1_0    (1)    /**< DTLS version 1.0 */
-#define SOCK_DTLS_1_2    (2)    /**< DTLS version 1.2 */
-#define SOCK_DTLS_1_3    (3)    /**< DTLS version 1.3 */
+enum {
+    SOCK_DTLS_1_0 = 1,  /**< DTLS version 1.0 */
+    SOCK_DTLS_1_2 = 2,  /**< DTLS version 1.2 */
+    SOCK_DTLS_1_3 = 3,  /**< DTLS version 1.3 */
+};
 /** @} */
 
 /**
- * @name DTLS role
+ * @brief DTLS role
  * @anchor sock_dtls_role
  * @{
  */
-#define SOCK_DTLS_CLIENT (1)    /**< Endpoint client role */
-#define SOCK_DTLS_SERVER (2)    /**< Endpoint server role */
+enum {
+    SOCK_DTLS_CLIENT = 1,   /**< Endpoint client role */
+    SOCK_DTLS_SERVER = 2,   /**< Endpoint server role */
+};
 /** @} */
 
 /**
@@ -505,7 +507,7 @@ typedef struct sock_dtls sock_dtls_t;
 typedef struct sock_dtls_session sock_dtls_session_t;
 
 /**
- * @brief Called exactly once during autoinit.
+ * @brief Called exactly once during `auto_init`.
  *
  * Calls the initialization function required by the DTLS stack used.
  */
@@ -523,7 +525,7 @@ void sock_dtls_init(void);
  * @param[out] sock     The resulting DTLS sock object
  * @param[in] udp_sock  Existing UDP sock initialized with
  *                      @ref sock_udp_create()to be used underneath.
- * @param[in] tag       Credential tag of the sock. The sock will only use
+ * @param[in] tag       Credential tag of @p sock. The sock will only use
  *                      credentials with the same tag given here.
  * @param[in] version   [DTLS version](@ref sock_dtls_prot_version) to use.
  * @param[in] role      [Role](@ref sock_dtls_role) of the endpoint.
@@ -625,7 +627,7 @@ ssize_t sock_dtls_send(sock_dtls_t *sock, sock_dtls_session_t *remote,
  * @brief Closes a DTLS sock
  *
  * Releases any memory allocated by @ref sock_dtls_create(). This function does
- * NOT closes the UDP sock used by the DTLS sock. After the call to this
+ * NOT close the UDP sock used by the DTLS sock. After the call to this
  * function, user will have to call @ref sock_udp_close() to close the UDP
  * sock.
  *

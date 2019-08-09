@@ -34,7 +34,7 @@
  * - Client operation
  *   1. Create UDP sock @ref sock_udp_create()
  *   2. Create DTLS sock @ref sock_dtls_create()
- *   3. Created session to server @ref sock_dtls_session_create()
+ *   3. Create session to server @ref sock_dtls_session_create()
  *   4. Send packet to server @ref sock_dtls_send()
  *
  * ## Makefile Includes
@@ -60,17 +60,18 @@
  * where it is located at. So it is your responsibility to make sure that the
  * credential is valid during the lifetime of your application.
  *
- * TODO: how to generate keys
+ * Instruction on how to generate the credentials can be found here [TODO].
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * #include <stdio.h>
  *
  * #include "net/credman.h"
  *
- * static uint8_t psk_key = "secretPSK"
- * static ecdsa_public_key_t other_pubkeys[] = {
- *     { .x = client_pubkey_x, .y = client_pubkey_y },
- * };
+ * #define SOCK_DTLS_SERVER_TAG (10)
+ * #define SOCK_DTLS_CLIENT_TAG (20)
+ *
+ * static char *psk_key = "secretPSK";
+ * static char *psk_id = "secretID";
  *
  * static const unsigned char server_ecdsa_priv_key[] = {...};
  * static const unsigned char server_ecdsa_pub_key_x[] = {...};
@@ -78,23 +79,28 @@
  * static const unsigned char client_pubkey_x[] = {...};
  * static const unsigned char client_pubkey_y[] = {...};
  *
+ * static ecdsa_public_key_t other_pubkeys[] = {
+ *     { .x = client_pubkey_x, .y = client_pubkey_y },
+ * };
+ *
  * int main(void)
  * {
  *     credman_credential_t psk_credential = {
  *         .type = CREDMAN_TYPE_PSK,
- *         .tag = DTLS_SERVER_TAG,
+ *         .tag = SOCK_DTLS_SERVER_TAG,
  *         .params = {
  *             .psk = {
  *                 .key = { .s = psk_key, .len = sizeof(psk_key), },
+ *                 .id = { .s = psk_id, .len = sizeof(psk_id), },
  *             },
  *         },
  *     };
- *     res = credman_add(&psk_credential);
- *     if (res < 0) {
- *         printf("Error cannot add credential to system: %d\n", (int)res);
+ *
+ *     if (credman_add(&psk_credential) < 0) {
+ *         puts("Error cannot add credential");
  *     }
-
- *     credman_credential_t credential = {
+ *
+ *     credman_credential_t ecc_credential = {
  *         .type = CREDMAN_TYPE_ECDSA,
  *         .tag = SOCK_DTLS_SERVER_TAG,
  *         .params = {
@@ -109,6 +115,13 @@
  *             },
  *         },
  *     };
+ *
+ *     if (credman_add(&ecc_credential) < 0) {
+ *         puts("Error cannot add credential");
+ *     }
+ *
+ *     // start server/client
+ *     // [...]
  * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -123,10 +136,11 @@
  * {
  *     credman_credential_t psk_credential = {
  *         .type = CREDMAN_TYPE_PSK,
- *         .tag = DTLS_SERVER_TAG,
+ *         .tag = SOCK_DTLS_SERVER_TAG,
  *         .params = {
  *             .psk = {
  *                 .key = { .s = psk_key, .len = sizeof(psk_key), },
+ *                 .id = { .s = psk_id, .len = sizeof(psk_id), },
  *             },
  *         },
  *     };
@@ -147,10 +161,8 @@
  * its assigned tag.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
- * res = credman_add(&psk_credential);
- * if (res < 0) {
- *     printf("Error cannot add credential to system: %d\n", (int)res);
- *     return;
+ * if (credman_add(&psk_credential) < 0) {
+ *     puts("Error cannot add credential");
  * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -170,12 +182,12 @@
  *
  * #include "net/sock/dtls.h"
  *
- * static uint8_t buf[128];
+ * #define SOCK_DTLS_SERVER_TAG (10)
  *
  * int main(void)
  * {
  *     // Add credentials
- *     [...]
+ *     // [...]
  *
  *     // initialize server
  *     sock_udp_t udp_sock;
@@ -188,21 +200,22 @@
  *
  *     sock_dtls_t dtls_sock;
  *     if (sock_dtls_create(&dtls_sock, &udp_sock,
- *                      SOCK_DTLS_SERVER_TAG,
- *                      SOCK_DTLS_1_2, SOCK_DTLS_SERVER) < 0) {
+ *                          SOCK_DTLS_SERVER_TAG,
+ *                          SOCK_DTLS_1_2, SOCK_DTLS_SERVER) < 0) {
  *         puts("Error creating DTLS sock");
  *         return -1;
  *     }
  *
  *     while (1) {
- *         ssize_t res;
+ *         int res;
+ *         char buf[128];
  *         sock_dtls_session_t session;
  *
- *         res = sock_dtls_recv(&dtls_sock, &session, buf, sizeof(buf)),
+ *         res = sock_dtls_recv(&dtls_sock, &session, buf, sizeof(buf),
  *                              SOCK_NO_TIMEOUT);
  *         if (res > 0) {
- *             puts("Received a message");
- *             if (sock_dtls_send(&dtls_sock, buf, res, &session) < 0) {
+ *             printf("Received %d bytes: %*.s\n", res, res, buf);
+ *             if (sock_dtls_send(&dtls_sock, &session, buf, res) < 0) {
  *                 puts("Error sending reply");
  *             }
  *         }
@@ -221,7 +234,10 @@
  * sock_udp_t udp_sock;
  * sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
  * local.port = 20220;
- * sock_udp_create(&udp_sock, &local, NULL, 0);
+ * if (sock_udp_create(&udp_sock, &local, NULL, 0) < 0) {
+ *     puts("Error creating UDP sock");
+ *     return -1;
+ * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * Using the initialized UDP sock, we can then create our DTLS sock. We use
@@ -240,8 +256,6 @@
  * [...]
  *
  * sock_dtls_t dtls_sock;
- * sock_dtls_session_t session;
- *
  * if (sock_dtls_create(&dtls_sock, &udp_sock,
  *                      SOCK_DTLS_SERVER_TAG,
  *                      SOCK_DTLS_1_2, SOCK_DTLS_SERVER) < 0) {
@@ -259,18 +273,20 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * while (1) {
- *     ssize_t res;
+ *     int res;
+ *     char buf[128];
  *     sock_dtls_session_t session;
  *
- *     res = sock_dtls_recv(&dtls_sock, &session, buf, sizeof(buf)),
+ *     res = sock_dtls_recv(&dtls_sock, &session, buf, sizeof(buf),
  *                          SOCK_NO_TIMEOUT);
  *     if (res > 0) {
- *         puts("Received a message");
-*         if (sock_dtls_send(&dtls_sock, buf, res, &session) < 0) {
+ *         printf("Received %d bytes: %s -- echo!\n", res, buf);
+ *         if (sock_dtls_send(&dtls_sock, &session, buf, res) < 0) {
  *             puts("Error sending reply");
  *         }
  *     }
  * }
+ * return 0;
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * ### Client Operation
@@ -281,9 +297,19 @@
  * #include "net/ipv6/addr.h"
  * #include "net/credman.h"
  *
+ * #define SOCK_DTLS_CLIENT_TAG (20)
+ *
+ * #ifndef SERVER_ADDR
+ * #define SERVER_ADDR "fe80::aa:bb:cc:dd" // replace this with the server address
+ * #endif
+ *
  * int main(void)
  * {
- *     int res;
+  *    // Add credentials
+ *     // [...]
+ *
+ *     // initialize client
+ *     char rcv[128];
  *     sock_udp_t udp_sock;
  *     sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
  *     local.port = 12345;
@@ -292,33 +318,42 @@
  *     remote.port = DTLS_DEFAULT_PORT;
  *     remote.netif = gnrc_netif_iter(NULL)->pid;   // only if GNRC_NETIF_NUMOF == 1
  *
- *     if (!ipv6_addr_from_str((ipv6_addr_t *)remote.addr.ipv6, addr_str)) {
+ *     sock_dtls_t dtls_sock;
+ *     sock_dtls_session_t session;
+ *
+ *     if (!ipv6_addr_from_str((ipv6_addr_t *)remote.addr.ipv6, SERVER_ADDR)) {
  *         puts("Error parsing destination address");
  *         return -1;
  *     }
  *
- *     if (sock_udp_create(&udp_sock, &local_ep, NULL, 0) < 0) {
- *         puts("Error creating UDP sock"):
+ *     if (sock_udp_create(&udp_sock, &local, NULL, 0) < 0) {
+ *         puts("Error creating UDP sock");
  *         return -1;
  *     }
  *
  *     if (sock_dtls_create(&dtls_sock, &udp_sock,
  *                          SOCK_DTLS_CLIENT_TAG,
  *                          SOCK_DTLS_1_2, SOCK_DTLS_CLIENT) < 0) {
- *             puts("Error creating DTLS sock");
- *             sock_udp_close(&udp_sock);
- *             return -1;
+ *         puts("Error creating DTLS sock");
+ *         sock_udp_close(&udp_sock);
+ *         return -1;
  *     }
  *
  *     if (sock_dtls_session_create(&dtls_sock, &remote, &session) < 0) {
- *         printf("Error creating session: %d\n", (int)res);
+ *         puts("Error creating session");
  *         sock_dtls_close(&dtls_sock);
  *         sock_udp_close(&udp_sock);
  *         return -1;
  *     }
  *
- *     if (sock_dtls_send(&dtls_sock, &session, data, datalen) >= 0) {
- *         sock_dtls_recv(&dtls_sock, &session, rcv, sizeof(rcv), SOCK_NO_TIMEOUT);
+ *     const char data[] = "HELLO";
+ *     int res = sock_dtls_send(&dtls_sock, &session, data, sizeof(data));
+ *     if (res >= 0) {
+ *         printf("Sent %d bytes: %*.s\n", res, res, data);
+ *         res = sock_dtls_recv(&dtls_sock, &session, rcv, sizeof(rcv), SOCK_NO_TIMEOUT);
+ *         if (res > 0) {
+ *             printf("Received %d bytes: %*.s\n", res, res, rcv);
+ *         }
  *     }
  *     else {
  *         puts("Error sending data");
@@ -327,7 +362,7 @@
  *     sock_dtls_session_destroy(&dtls_sock, &session);
  *     sock_dtls_close(&dtls_sock);
  *     sock_udp_close(&udp_sock);
- *  }
+ *     return 0;
  * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * This is an example of a DTLS echo client.
@@ -338,7 +373,7 @@
  * sock_udp_t udp_sock;
  * sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
  * local.port = 12345;
- * sock_udp_create(&udp_sock, &local_ep, NULL, 0);
+ * sock_udp_create(&udp_sock, &local, NULL, 0);
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * After that, we set the address of the remote endpoint where the packet is
@@ -349,18 +384,19 @@
  * sock_udp_ep_t remote;
  * remote.port = DTLS_DEFAULT_PORT;
  * remote.netif = gnrc_netif_iter(NULL)->pid;   // only if GNRC_NETIF_NUMOF == 1
- * if (!ipv6_addr_from_str((ipv6_addr_t *)remote.addr.ipv6, addr_str)) {
+ *
+ * if (!ipv6_addr_from_str((ipv6_addr_t *)remote.addr.ipv6, SERVER_ADDR)) {
  *     puts("Error parsing destination address");
- *     return;
+ *     return -1;
  * }
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * After the UDP sock is created, we can proceed with creating the DTLS sock.
  * Before sending the packet, we must first create a session with the remote
  * endpoint using @ref sock_dtls_session_create(). If the handshake is
- * successful and the session is created, we can use its `remote` to send
- * packets to it with @ref sock_dtls_send(). If the packet is successfully sent,
- * we listen for the response with @ref sock_dtls_recv().
+ * successful and the session is created, we send packets to it using
+ * @ref sock_dtls_send(). If the packet is successfully sent, we listen for
+ * the response with @ref sock_dtls_recv().
  *
  * As @ref sock_dtls_create() and @ref sock_dtls_close() only manages the DTLS
  * layer, we still have to clean up the created UDP sock from before by calling
@@ -368,28 +404,44 @@
  * of the application.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
+ * char rcv[128];
+ * sock_dtls_t dtls_sock;
+ * sock_dtls_session_t session;
+ *
+ * [...]
+ *
  * if (sock_dtls_create(&dtls_sock, &udp_sock,
  *                      SOCK_DTLS_CLIENT_TAG,
  *                      SOCK_DTLS_1_2, SOCK_DTLS_CLIENT) < 0) {
- *         puts("Error creating DTLS sock");
- *         sock_udp_close(&udp_sock);
- *         return -1;
+ *     puts("Error creating DTLS sock");
+ *     sock_udp_close(&udp_sock);
+ *     return -1;
+ * }
  *
  * if (sock_dtls_session_create(&dtls_sock, &remote, &session) < 0) {
  *     printf("Error creating session: %d\n", (int)res);
  *     sock_dtls_close(&dtls_sock);
  *     sock_udp_close(&udp_sock);
  *     return -1;
+ * }
  *
- * if (sock_dtls_send(&dtls_sock, &session, data, datalen) >= 0) {
- *     sock_dtls_recv(&dtls_sock, &session, rcv, sizeof(rcv), SOCK_NO_TIMEOUT);
+ * const char data[] = "HELLO";
+ * int res = sock_dtls_send(&dtls_sock, &session, data, sizeof(data));
+ * if (res >= 0) {
+ *     printf("Sent %d bytes: %*.s\n", res, res, data);
+ *     res = sock_dtls_recv(&dtls_sock, &session, rcv, sizeof(rcv), SOCK_NO_TIMEOUT);
+ *     if (res > 0) {
+ *         printf("Received %d bytes: %*.s\n", res, res, rcv);
+ *     }
  * }
  * else {
  *     puts("Error sending data");
+ * }
  *
  * sock_dtls_session_destroy(&dtls_sock, &session);
  * sock_dtls_close(&dtls_sock);
  * sock_udp_close(&udp_sock);
+ * return 0;
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * @{

@@ -53,7 +53,7 @@
  *
  * ### Adding credentials
  *
- * Before using this API, either as a server or a client, we need to first
+ * Before using this API, either as a server or a client, we first need to
  * add the credentials to be used for the encryption using
  * [credman](@ref net_credman). Note that credman does not copy the credentials
  * given into the system, it only has information about the credentials and
@@ -167,7 +167,7 @@
  * After credential information is filled, we can add it to the credential
  * pool using @ref credman_add().
  *
- * For adding credentials of other types you can follow the steps above except
+ * For adding credentials of other types, you can follow the steps above except
  * credman_credential_t::type and credman_credential_t::params depend on the
  * type of credential used.
  *
@@ -225,7 +225,7 @@
  * This is an example of a DTLS echo server.
  *
  * DTLS sock uses an initialized UDP sock to send and receive encrypted
- * packets. Therefore, the listening port for the server also need to be
+ * packets. Therefore, the listening port for the server also needs to be
  * set here.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
@@ -240,7 +240,7 @@
  *
  * Using the initialized UDP sock, we can then create our DTLS sock. We use
  * SOCK_DTLS_SERVER_TAG, which is defined as `10` in our application code
- * beforehand, as our tag. Using @ref SOCK_DTLS_1_2 and @ref SOCK_DTLS_SERVER
+ * beforehand, as our tag. Using @ref SOCK_DTLS_1_2 and @ref SOCK_DTLS_SERVER,
  * we set our DTLS endpoint to use DTLS version 1.2 and act as a DTLS server.
  *
  * Note that some DTLS implementation do not support earlier versions of DTLS.
@@ -374,9 +374,8 @@
  * sock_udp_create(&udp_sock, &local, NULL, 0);
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * After that, we set the address of the remote endpoint where the packet is
- * supposed to be sent to and the port the server is listening to which is
- * DTLS_DEFAULT_PORT (20220).
+ * After that, we set the address of the remote endpoint and its
+ * listening port, which is DTLS_DEFAULT_PORT (20220).
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * sock_udp_ep_t remote;
@@ -396,10 +395,10 @@
  * @ref sock_dtls_send(). If the packet is successfully sent, we listen for
  * the response with @ref sock_dtls_recv().
  *
- * As @ref sock_dtls_create() and @ref sock_dtls_close() only manages the DTLS
- * layer, we still have to clean up the created UDP sock from before by calling
- * @ref sock_udp_close() on our UDP sock in case of error or we reached the end
- * of the application.
+ * @ref sock_dtls_create() and @ref sock_dtls_close() only manages the DTLS
+ * layer. That means we still have to clean up the created UDP sock from before
+ * by calling @ref sock_udp_close() on our UDP sock in case of error or we
+ * reached the end of the application.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.c}
  * char rcv[128];

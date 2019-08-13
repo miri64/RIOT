@@ -212,7 +212,7 @@
  *         res = sock_dtls_recv(&dtls_sock, &session, buf, sizeof(buf),
  *                              SOCK_NO_TIMEOUT);
  *         if (res > 0) {
- *             printf("Received %d bytes: %*.s\n", res, res, buf);
+ *             printf("Received %d bytes\n", res);
  *             if (sock_dtls_send(&dtls_sock, &session, buf, res) < 0) {
  *                 puts("Error sending reply");
  *             }
@@ -278,7 +278,7 @@
  *     res = sock_dtls_recv(&dtls_sock, &session, buf, sizeof(buf),
  *                          SOCK_NO_TIMEOUT);
  *     if (res > 0) {
- *         printf("Received %d bytes: %*.s -- echo!\n", res, res, buf);
+ *         printf("Received %d bytes -- echo!\n", res);
  *         if (sock_dtls_send(&dtls_sock, &session, buf, res) < 0) {
  *             puts("Error sending reply");
  *         }
@@ -347,10 +347,10 @@
  *     const char data[] = "HELLO";
  *     int res = sock_dtls_send(&dtls_sock, &session, data, sizeof(data));
  *     if (res >= 0) {
- *         printf("Sent %d bytes: %*.s\n", res, res, data);
+ *         printf("Sent %d bytes\n", res);
  *         res = sock_dtls_recv(&dtls_sock, &session, rcv, sizeof(rcv), SOCK_NO_TIMEOUT);
  *         if (res > 0) {
- *             printf("Received %d bytes: %*.s\n", res, res, rcv);
+ *             printf("Received %d bytes\n", res);
  *         }
  *     }
  *     else {

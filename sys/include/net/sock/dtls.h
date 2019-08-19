@@ -553,7 +553,7 @@ int sock_dtls_create(sock_dtls_t *sock, sock_udp_t *udp_sock,
  *          credentials.
  * @return  -ETIMEDOUT, if timed out when trying to create session.
  */
-int sock_dtls_session_create(sock_dtls_t *sock, sock_udp_ep_t *ep,
+int sock_dtls_session_create(sock_dtls_t *sock, const sock_udp_ep_t *ep,
                              sock_dtls_session_t *remote);
 
 /**

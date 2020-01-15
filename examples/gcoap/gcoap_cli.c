@@ -24,8 +24,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "net/gcoap.h"
+#include "saul_reg.h"
 #include "od.h"
 #include "fmt.h"
+#include "jsmn.h"
 
 #define ENABLE_DEBUG (0)
 #include "debug.h"
@@ -35,17 +37,36 @@ static ssize_t _encode_link(const coap_resource_t *resource, char *buf,
 static void _resp_handler(const gcoap_request_memo_t *memo, coap_pkt_t* pdu,
                           const sock_udp_ep_t *remote);
 static ssize_t _stats_handler(coap_pkt_t* pdu, uint8_t *buf, size_t len, void *ctx);
+static ssize_t _saul_handler(coap_pkt_t* pdu, uint8_t *buf, size_t len, void *ctx);
 static ssize_t _riot_board_handler(coap_pkt_t* pdu, uint8_t *buf, size_t len, void *ctx);
 
 /* CoAP resources. Must be sorted by path (ASCII order). */
 static const coap_resource_t _resources[] = {
     { "/cli/stats", COAP_GET | COAP_PUT, _stats_handler, NULL },
+    { "/led/green", COAP_GET | COAP_POST, _saul_handler, (void *)0x1 },
+    { "/led/orange", COAP_GET | COAP_POST, _saul_handler, (void *)0x2 },
+    { "/led/red", COAP_GET | COAP_POST, _saul_handler, (void *)0x0 },
     { "/riot/board", COAP_GET, _riot_board_handler, NULL },
+    { "/sense/accel", COAP_GET, _saul_handler, (void *)0x7 },
+    { "/sense/gyro", COAP_GET, _saul_handler, (void *)0x4 },
+    { "/sense/light", COAP_GET, _saul_handler, (void *)0x3 },
+    { "/sense/mag", COAP_GET, _saul_handler, (void *)0x8 },
+    { "/sense/press", COAP_GET, _saul_handler, (void *)0x5 },
+    { "/sense/temp", COAP_GET, _saul_handler, (void *)0x6 },
 };
 
 static const char *_link_params[] = {
     ";ct=0;rt=\"count\";obs",
-    NULL
+    ";ct=50,rt=\"light\"",
+    ";ct=50,rt=\"light\"",
+    ";ct=50,rt=\"light\"",
+    NULL,
+    ";ct=50,rt=\"accel\"",
+    ";ct=50,rt=\"accel\"",
+    ";ct=50,rt=\"illu\"",
+    ";ct=50,rt=\"mag\"",
+    ";ct=50,rt=\"atm\"",
+    ";ct=50,rt=\"temp\"",
 };
 
 static gcoap_listener_t _listener = {
@@ -112,6 +133,7 @@ static void _resp_handler(const gcoap_request_memo_t *memo, coap_pkt_t* pdu,
     if (pdu->payload_len) {
         unsigned content_type = coap_get_content_type(pdu);
         if (content_type == COAP_FORMAT_TEXT
+                || content_type == COAP_FORMAT_JSON
                 || content_type == COAP_FORMAT_LINK
                 || coap_get_code_class(pdu) == COAP_CLASS_CLIENT_FAILURE
                 || coap_get_code_class(pdu) == COAP_CLASS_SERVER_FAILURE) {
@@ -212,6 +234,145 @@ static ssize_t _riot_board_handler(coap_pkt_t *pdu, uint8_t *buf, size_t len, vo
         puts("gcoap_cli: msg buffer too small");
         return gcoap_response(pdu, buf, len, COAP_CODE_INTERNAL_SERVER_ERROR);
     }
+}
+
+static ssize_t _check_offset_error(coap_pkt_t *pdu, uint8_t *buf, size_t len,
+                                   int offset)
+{
+    /* payload was truncated */
+    if (offset >= pdu->payload_len) {
+        puts("gcoap_cli: msg buffer too small");
+        return gcoap_response(pdu, buf, len, COAP_CODE_INTERNAL_SERVER_ERROR);
+    }
+    if (offset < 0) {
+        puts("gcoap_cli: error on formatting");
+        return gcoap_response(pdu, buf, len, COAP_CODE_INTERNAL_SERVER_ERROR);
+    }
+    return 0;
+}
+
+static inline bool _jsoneq(const char *json, jsmntok_t *tok, const char *s)
+{
+    return ((tok->type == JSMN_STRING) &&
+           ((int)strlen(s) == (tok->end - tok->start)) &&
+            (strncmp(json + tok->start, s, tok->end - tok->start) == 0));
+}
+
+static ssize_t _saul_handler(coap_pkt_t *pdu, uint8_t *buf, size_t len, void *ctx)
+{
+    saul_reg_t *dev;
+    int num = (intptr_t)ctx;
+    /* read coap method type in packet */
+    unsigned method_flag = coap_method2flag(coap_get_code_detail(pdu));
+    phydat_t data;
+
+    dev = saul_reg_find_nth(num);
+    if (dev == NULL) {
+        puts("gcoap_cli: Unknown SAUL device");
+        return gcoap_response(pdu, buf, len, COAP_CODE_404);
+    }
+    if (method_flag == COAP_GET) {
+        int offset, dim;
+        ssize_t res;
+
+        dim = saul_reg_read(dev, &data);
+        if ((dim <= 0) || ((unsigned)dim > PHYDAT_DIM)) {
+            puts("gcoap_cli: error reading SAUL device");
+            return gcoap_response(pdu, buf, len, COAP_CODE_INTERNAL_SERVER_ERROR);
+        }
+        gcoap_resp_init(pdu, buf, len, COAP_CODE_CONTENT);
+        coap_opt_add_format(pdu, COAP_FORMAT_JSON);
+        size_t resp_len = coap_opt_finish(pdu, COAP_OPT_FINISH_PAYLOAD);
+
+        offset = snprintf((char *)pdu->payload, pdu->payload_len,
+                          "{\"cl\":\"%s\",\"u\":\"%s\",\"v\":[",
+                          saul_class_to_str(dev->driver->type),
+                          phydat_unit_to_str(data.unit));
+        if ((res = _check_offset_error(pdu, buf, len, offset))) {
+            return res;
+        }
+        for (int8_t i = 0; i < dim; i++) {
+            int tmp;
+            char *ptr = (char *)(pdu->payload + offset);
+            uint16_t buf_len = (uint16_t)(pdu->payload_len - offset);
+            char *delim = ((i + 1) == dim) ? "]}" : ",";
+
+            if (data.scale == 0) {
+                tmp = snprintf(ptr, buf_len, "%d%s", data.val[i], delim);
+            }
+            else if (((data.scale > -5) && (data.scale < 0))) {
+                char num[8];
+                size_t len = fmt_s16_dfp(num, data.val[i], data.scale);
+
+                num[len] = '\0';
+                tmp = snprintf(ptr, buf_len, "%s%s", num, delim);
+            }
+            else {
+                tmp = snprintf(ptr, buf_len, "%dE%d%s", data.val[i], data.scale,
+                               delim);
+            }
+            if ((res = _check_offset_error(pdu, buf, len, tmp))) {
+                return res;
+            }
+            offset += tmp;
+        }
+        return resp_len + offset;
+    }
+    else if (method_flag == COAP_POST) {
+        jsmn_parser p = { 0 };
+        jsmntok_t t[16]; /* We expect no more than 16 tokens */
+        int r;
+        char *ptr = (char *)pdu->payload;
+
+        r = jsmn_parse(&p, ptr, pdu->payload_len,
+                       t, ARRAY_SIZE(t));
+        if ((r < 0) || (r < 1) || (t[0].type != JSMN_OBJECT)) {
+            puts("gcoap_cli: Failed to parse JSON or not an object");
+            goto error;
+        }
+        for (int i = 1; i < r; i++) {
+            if (_jsoneq(ptr, &t[i], "v")) {
+                bool val = false;
+
+                if (((i + 2) >= r) ||
+                    (t[i + 1].type != JSMN_ARRAY) ||
+                    (t[i + 1].size < 1) ||
+                    (t[i + 2].type != JSMN_PRIMITIVE) ||
+                    ((t[i + 2].end - t[i + 2].start) < 1)) {
+                    puts("gcoap_cli: Value of unexpected type");
+                    goto error;
+                }
+                switch (ptr[t[i + 2].start]) {
+                    /* boolean or null string */
+                    case 'f':
+                    case 'n':
+                        val = false;
+                        break;
+                    case 't':
+                        val = true;
+                        break;
+                    default:
+                        /* is a number */
+                        if ((ptr[t[i + 2].start] == '-') ||
+                            (ptr[t[i + 2].start] == '+')) {
+                            t[i + 2].start++;
+                        }
+                        val = !((ptr[t[i + 2].start] == '0') &&
+                                ((t[i + 2].end - t[i + 2].start) == 1));
+                        break;
+                }
+                memset(&data, 0, sizeof(data));
+                data.val[0] = (int16_t)val;
+                if (saul_reg_write(dev, &data) <= 0) {
+                    puts("gcoap_cli: Error writing to device");
+                    goto error;
+                }
+                return gcoap_response(pdu, buf, len, COAP_CODE_CHANGED);
+            }
+        }
+    }
+error:
+    return gcoap_response(pdu, buf, len, COAP_CODE_BAD_REQUEST);
 }
 
 static size_t _send(uint8_t *buf, size_t len, char *addr_str, char *port_str)

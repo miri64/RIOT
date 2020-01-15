@@ -20,6 +20,8 @@ RIOTBASE ?= $(CURDIR)/../..
 # Increase from default for confirmable block2 follow-on requests
 GCOAP_RESEND_BUFS_MAX ?= 2
 CFLAGS += -DGCOAP_RESEND_BUFS_MAX=$(GCOAP_RESEND_BUFS_MAX)
+CFLAGS += -D"GNRC_IPV6_NIB_CONF_SLAAC=1"
+CFLAGS += -D"GCOAP_PDU_BUF_SIZE=512"
 
 # Include packages that pull up and auto-init the link layer.
 # NOTE: 6LoWPAN will be included if IEEE802.15.4 devices are present
@@ -38,6 +40,11 @@ USEMODULE += fmt
 USEMODULE += shell
 USEMODULE += shell_commands
 USEMODULE += ps
+USEMODULE += saul_default
+
+USEPKG += jsmn
+
+DEFAULT_CHANNEL ?= 16
 
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
@@ -48,3 +55,6 @@ DEVELHELP ?= 1
 QUIET ?= 1
 
 include $(RIOTBASE)/Makefile.include
+
+# Set a custom channel if needed
+include $(RIOTMAKE)/default-radio-settings.inc.mk

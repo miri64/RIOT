@@ -1,5 +1,5 @@
 PKG_NAME=ccn-lite
-PKG_URL=https://github.com/5G-I3/ccn-lite/
+PKG_URL=git@github.com:5G-I3/ccn-lite.git
 PKG_VERSION=f6c6abf9eece4d32bba89698bc089ca6a1907c05
 PKG_LICENSE=ISC
 

@@ -1,6 +1,6 @@
 PKG_NAME=ccn-lite
 PKG_URL=https://github.com/5G-I3/ccn-lite/
-PKG_VERSION=1734aea61ae448db90269a91393c0232d4bab23c
+PKG_VERSION=f6c6abf9eece4d32bba89698bc089ca6a1907c05
 PKG_LICENSE=ISC
 
 include $(RIOTBASE)/pkg/pkg.mk

@@ -624,8 +624,10 @@ static int _rbuf_get(const void *src, size_t src_len,
         return -1;
     }
 
-    *((uint64_t *)res->pkt->data) = 0;  /* clean first few bytes for later
-                                               * look-ups */
+    if (res->pkt->data) {
+        *((uint64_t *)res->pkt->data) = 0;  /* clean first few bytes for later
+                                             * look-ups */
+    }
     res->super.datagram_size = size;
     res->super.arrival = now_usec;
     memcpy(res->super.src, src, src_len);

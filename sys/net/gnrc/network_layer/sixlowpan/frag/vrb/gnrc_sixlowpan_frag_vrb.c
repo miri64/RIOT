@@ -129,6 +129,101 @@ gnrc_sixlowpan_frag_vrb_t *gnrc_sixlowpan_frag_vrb_add(
     return vrbe;
 }
 
+#ifdef MODULE_GNRC_ICNLOWPAN_HC
+static int8_t _soft_dehead(uint8_t **buf, size_t *len,
+                           uint64_t *typ, size_t *vallen)
+{
+    uint64_t vallen_int = 0;
+    if (ccnl_ndntlv_varlenint(buf, len, typ)) {
+        return -1;
+    }
+    if (ccnl_ndntlv_varlenint(buf, len, &vallen_int)) {
+        return -1;
+    }
+    if (vallen_int > SIZE_MAX) {
+        return -1; // Return failure (-1) if length value in the tlv exceeds size_t bounds
+    }
+    *vallen = (size_t) vallen_int;
+    return 0;
+}
+
+static struct ccnl_prefix_s *_find_ndn_prefix(const gnrc_pktsnip_t *pkt,
+                                              uint64_t *pkt_type)
+{
+    uint64_t field_type;
+    uint8_t *start, *data = pkt->data;
+    size_t size = pkt->size, oldpos, field_len;
+
+    /* XXX cannot use ccnl_ndntlv_dehead() and ccnl_ndntlv_bytes2pkt() as it
+     * checks the length field against the actual length, so do it by hand */
+    if ((_soft_dehead(&data, &size, pkt_type, &field_len) < 0) ||
+        (((int)pkt->size - size) <= 0)) {
+        DEBUG("6lo vrb NDN: unable to dehead packet\n");
+        return NULL;
+    }
+    start = pkt->data;
+    oldpos = data - start;
+    while (_soft_dehead(&data, &size, &field_type, &field_len) == 0) {
+        uint8_t *cp = data;
+        size_t len2 = field_len, i;
+
+        if (((int)pkt->size - size) <= 0) {
+            DEBUG("6lo vrb NDN: limits of fragment hit\n");
+            return NULL;
+        }
+        switch (field_type) {
+            case NDN_TLV_Name: {
+                struct ccnl_prefix_s *prefix = ccnl_prefix_new(
+                    CCNL_SUITE_NDNTLV,
+                    CCNL_MAX_NAME_COMP
+                );
+                if (prefix == NULL) {
+                    DEBUG("6lo vrb NDN: unable to allocate prefix\n");
+                    return NULL;
+                }
+                prefix->compcnt = 0;
+                prefix->nameptr = start + oldpos;
+                while ((len2 > 0) && (((int)pkt->size - size - len2) > 0)) {
+                    if (_soft_dehead(&cp, &len2, &field_type, &i)) {
+                        ccnl_prefix_free(prefix);
+                        DEBUG("6lo vrb NDN: unable to parse TLV\n");
+                        return NULL;
+                    }
+                    if ((field_type == NDN_TLV_NameComponent) &&
+                        (prefix->compcnt < CCNL_MAX_NAME_COMP)) {
+                        if (cp[0] == NDN_Marker_SegmentNumber) {
+                            uint64_t chunknum;
+                            prefix->chunknum = (uint32_t *) ccnl_malloc(sizeof(uint32_t));
+                            // TODO: requires ccnl_ndntlv_includedNonNegInt which includes the length of the marker
+                            // it is implemented for encode, the decode is not yet implemented
+                            chunknum = ccnl_ndntlv_nonNegInt(cp + 1, i - 1);
+                            if (chunknum > UINT32_MAX) {
+                                ccnl_prefix_free(prefix);
+                                DEBUG("6lo vrb NDN: chunk num too large\n");
+                                return NULL;
+                            }
+                            *prefix->chunknum = (uint32_t) chunknum;
+                        }
+                        prefix->comp[prefix->compcnt] = cp;
+                        prefix->complen[prefix->compcnt] = i; //FIXME, what if the len value inside the TLV is wrong -> can this lead to overruns inside
+                        prefix->compcnt++;
+                    }  // else unknown type: skip
+                    cp += i;
+                    len2 -= i;
+                }
+                prefix->namelen = data - prefix->nameptr;
+                return prefix;
+            }
+            default:
+                break;
+        }
+    }
+    DEBUG("6lo vrb NDN: no prefix found in packet\n");
+    return NULL;
+}
+#endif
+
+
 gnrc_sixlowpan_frag_vrb_t *gnrc_sixlowpan_frag_vrb_from_route(
             const gnrc_sixlowpan_frag_rb_base_t *base,
             gnrc_netif_t *netif, const gnrc_pktsnip_t *hdr)
@@ -169,22 +264,15 @@ gnrc_sixlowpan_frag_vrb_t *gnrc_sixlowpan_frag_vrb_from_route(
             assert((ccnl_pkt2suite(hdr->data, hdr->size, NULL)
                     == CCNL_SUITE_NDNTLV) && (hdr->size > 1));
             uint64_t type;
-            struct ccnl_pkt_s *pkt;
-            uint8_t *data = hdr->data;
-            uint8_t *start = data;
-            size_t len, data_len = hdr->size;
+            struct ccnl_prefix_s *pfx;
 
-            if (ccnl_ndntlv_dehead(&data, &data_len, &type, &len) ||
-                (len > data_len)) {
-                DEBUG("6lo vrb: Invalid NDN packet format\n");
+            pfx = _find_ndn_prefix(hdr, &type);
+            if (!pfx) {
+                DEBUG("6lo vrb: unable to find NDN prefix\n");
                 break;
             }
-            pkt = ccnl_ndntlv_bytes2pkt(type, start, &data, &data_len);
-            if (!pkt) {
-                DEBUG("6lo vrb: ndntlv packet coding problem\n");
-                break;
-            }
-            pkt->type = type;
+            DEBUG("6lo vrb: Found prefix %s in packet\n",
+                  ccnl_prefix_to_str(pfx, addr_str, sizeof(addr_str)));
             switch (type) {
                 case NDN_TLV_Interest: {
                     struct ccnl_forward_s *fwd;
@@ -195,12 +283,7 @@ gnrc_sixlowpan_frag_vrb_t *gnrc_sixlowpan_frag_vrb_from_route(
                         if (!fwd->prefix) {
                             continue;
                         }
-                        if (!pkt->pfx || fwd->suite != pkt->pfx->suite) {
-                            DEBUG("6lo vrb: not same CCN-lite suite (%d/%d)\n",
-                                  fwd->suite, pkt->pfx ? pkt->pfx->suite : -1);
-                            continue;
-                        }
-                        rc = ccnl_prefix_cmp(fwd->prefix, NULL, pkt->pfx,
+                        rc = ccnl_prefix_cmp(fwd->prefix, NULL, pfx,
                                              CMP_LONGEST);
 
                         DEBUG("6lo vrb: rc=%ld/%ld\n", (long)rc,
@@ -209,7 +292,7 @@ gnrc_sixlowpan_frag_vrb_t *gnrc_sixlowpan_frag_vrb_from_route(
                             continue;
                         }
                         DEBUG("6lo vrb: FIB entry for prefix %s found\n",
-                              ccnl_prefix_to_str(pkt->pfx,
+                              ccnl_prefix_to_str(pfx,
                                                  addr_str, sizeof(addr_str)));
                         assert(fwd->face->peer.sa.sa_family == AF_PACKET);
                         res = gnrc_sixlowpan_frag_vrb_add(
@@ -230,18 +313,19 @@ gnrc_sixlowpan_frag_vrb_t *gnrc_sixlowpan_frag_vrb_from_route(
 
                         /* TODO: CCNL_FACE_FLAGS_SERVED stuff?
                          *       see ccnl_content_serve_pending() */
-                        if (!i->pkt->pfx) {
-                            continue;
-                        }
                         /* XXX or rather ccnl_i_prefixof_c()? */
-                        if (ccnl_prefix_cmp(i->pkt->pfx, NULL,
-                                            pkt->pfx, CMP_EXACT) < 0) {
+                        if (ccnl_prefix_cmp(i->pkt->pfx, NULL, pfx,
+                                            CMP_EXACT) < 0) {
+                            DEBUG("6lo vrb: PIT prefix did not match\n");
                             // XX must also check i->ppkl,
                             continue;
                         }
                         for (pi = i->pending; pi; pi = pi->next) {
                             if (pi->face->ifndx >= 0) {
                                 kernel_pid_t if_pid = ccnl_relay.ifs[0].if_pid;
+                                DEBUG("6lo vrb: PIT entry for prefix %s found\n",
+                                      ccnl_prefix_to_str(pfx, addr_str,
+                                                         sizeof(addr_str)));
                                 assert(pi->face->peer.sa.sa_family == AF_PACKET);
                                 res = gnrc_sixlowpan_frag_vrb_add(
                                         base,
@@ -256,10 +340,10 @@ gnrc_sixlowpan_frag_vrb_t *gnrc_sixlowpan_frag_vrb_from_route(
                 }
                 default:
                     DEBUG("6lo vrb: Do not know how forward packet type %u\n",
-                          *data);
+                          (unsigned)type);
                     break;
             }
-            ccnl_pkt_free(pkt);
+            ccnl_prefix_free(pfx);
             break;
         }
 #endif

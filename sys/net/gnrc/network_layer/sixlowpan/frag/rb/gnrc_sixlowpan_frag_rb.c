@@ -151,7 +151,9 @@ void gnrc_sixlowpan_frag_rb_rm_by_datagram(const gnrc_netif_hdr_t *netif_hdr,
     gnrc_sixlowpan_frag_rb_t *e = _rbuf_get_by_tag(netif_hdr, tag);
 
     if (e != NULL) {
-        gnrc_pktbuf_release(e->pkt);
+        if (e->pkt != NULL) {
+            gnrc_pktbuf_release(e->pkt);
+        }
         gnrc_sixlowpan_frag_rb_remove(e);
     }
 }

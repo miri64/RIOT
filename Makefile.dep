@@ -321,6 +321,10 @@ ifneq (,$(filter gnrc_icmpv6,$(USEMODULE)))
   USEMODULE += icmpv6
 endif
 
+ifneq (,$(filter gnrc_rpl_opt,$(USEMODULE)))
+  USEMODULE += gnrc_ipv6_ext_opt
+endif
+
 ifneq (,$(filter gnrc_rpl_srh,$(USEMODULE)))
   USEMODULE += gnrc_ipv6_ext_rh
 endif

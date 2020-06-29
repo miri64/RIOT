@@ -19,6 +19,10 @@
 #include "net/gnrc/icmpv6/error.h"
 #include "net/gnrc/pktbuf.h"
 
+#ifdef MODULE_GNRC_RPL_OPT
+#include "net/gnrc/rpl/opt.h"
+#endif
+
 #include "net/gnrc/ipv6/ext/opt.h"
 
 #define ENABLE_DEBUG    (0)
@@ -87,6 +91,28 @@ gnrc_pktsnip_t *gnrc_ipv6_ext_opt_process(gnrc_pktsnip_t *pkt,
             case IPV6_EXT_OPT_PADN:
                 /* nothing to do, offset will be progressed below */
                 break;
+#if IS_USED(MODULE_GNRC_RPL_OPT)
+            case IPV6_EXT_OPT_RPL: {
+                int res = gnrc_rpl_opt_process(opts, opt_len);
+                switch (res) {
+                    case GNRC_RPL_OPT_INCONSISTENCY:
+                        /* we received a F Flag, process dependent on MOP
+                         * drop on non-storing
+                         * TODO: keep track of original sender and count F
+                         * errors */
+                        break;
+                    case GNRC_RPL_OPT_FLAG_F_SET:
+                        /* we determined the second forwarding error and set
+                         * the F Flag drop on non-storing
+                         * TODO: keep track of original sender and count F
+                         * errors */
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            }
+#endif
             default: {
                 bool send_error = false;
 

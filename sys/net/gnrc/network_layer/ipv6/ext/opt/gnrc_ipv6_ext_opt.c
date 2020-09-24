@@ -19,7 +19,7 @@
 #include "net/gnrc/icmpv6/error.h"
 #include "net/gnrc/pktbuf.h"
 
-#ifdef MODULE_GNRC_RPL_OPT
+#if IS_USED(MODULE_GNRC_RPL_OPT)
 #include "net/gnrc/rpl/opt.h"
 #endif
 

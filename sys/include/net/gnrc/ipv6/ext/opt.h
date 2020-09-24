@@ -24,10 +24,15 @@
 #include <stdint.h>
 
 #include "net/gnrc/pkt.h"
+#include "net/protnum.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+gnrc_pktsnip_t *gnrc_ipv6_ext_opt_add_hopopt(gnrc_pktsnip_t *pkt);
+
+gnrc_pktsnip_t *gnrc_ipv6_ext_opt_add_dst(gnrc_pktsnip_t *pkt);
 
 /**
  * @brief   Processes all options within an IPv6 option header

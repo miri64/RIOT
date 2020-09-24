@@ -54,6 +54,10 @@ enum {
 #define GNRC_RPL_HOP_OPT_FLAG_F  (1 << 2)   /**< Forwarding error */
 /** @} */
 
+gnrc_pktsnip_t gnrc_rpl_opt_add(const gnrc_pktsnip_t *ipv6,
+                                gnrc_pktsnip_t *opt,
+                                uint8_t protnum);
+
 /**
  * @brief parse the given hop-by-hop option, check for inconsistencies,
  *        adjust the option for further processing and return the result.

@@ -88,47 +88,56 @@ activate_forwarding() {
     fi
 }
 
+add_ipv6_addr() {
+    ADDRESS="$(echo "${1}" | cut -d/ -f1)"
+    PREFIX_LEN="$(echo "${1}" | cut -d/ -f2)"
+
+    if [ "${1}" = "${PREFIX_LEN}" ]; then
+        # prefix length is not defined
+        PREFIX_LEN=${DEFAULT_PREFIX_LEN}
+    fi
+    case "${PLATFORM}" in
+        FreeBSD|OSX)
+            ifconfig ${BRNAME} inet6 ${ADDRESS} prefixlen ${PREFIX_LEN} || exit 1
+            ;;
+        Linux)
+            ip address add ${ADDRESS}/${PREFIX_LEN} dev ${BRNAME} || exit 1
+            ;;
+        *)  ;;
+    esac
+}
+
 add_ipv6_addrs() {
     for a in ${BRIDGE_ADDRS}; do
-        address_addr=$(echo "${a}" | cut -d/ -f1)
-        prefix_len=$(echo "${a}" | cut -d/ -f2)
-        if [ "${a}" = "${prefix_len}" ]; then
-            # prefix length is not defined
-            prefix_len=${DEFAULT_PREFIX_LEN}
-        fi
-        case "${PLATFORM}" in
-            FreeBSD|OSX)
-                ifconfig ${BRNAME} inet6 ${address_addr} prefixlen ${prefix_len} || exit 1
-                ;;
-            Linux)
-                ip address add ${address_addr}/${prefix_len} dev ${BRNAME} || exit 1
-                ;;
-            *)  ;;
-        esac
+        add_ipv6_addr "${a}"
     done
+}
+
+add_ipv6_route() {
+    ROUTE=$(echo "${1}" | cut -d- -f1)
+    NEXT_HOP=$(echo "${1}" | cut -d- -f2)
+    ROUTE_PREFIX=$(echo "${ROUTE}" | cut -d/ -f1)
+    ROUTE_PREFIX_LEN=$(echo "${ROUTE}" | cut -d/ -f2)
+    if [ "${ROUTE}" = "${ROUTE_PREFIX_LEN}" ]; then
+        # prefix length is not defined
+        ROUTE_PREFIX_LEN=${DEFAULT_PREFIX_LEN}
+    fi
+    case "${PLATFORM}" in
+        FreeBSD|OSX)
+            route -6n add ${ROUTE_PREFIX} -interface ${BRNAME} \
+                ${NEXT_HOP} || exit 1
+            ;;
+        Linux)
+            ip route add ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
+                via ${NEXT_HOP} dev ${BRNAME} || exit 1
+            ;;
+        *)  ;;
+    esac
 }
 
 add_ipv6_routes() {
     for r in ${BRIDGE_ROUTES}; do
-        route=$(echo "${r}" | cut -d- -f1)
-        next_hop=$(echo "${r}" | cut -d- -f2)
-        route_prefix=$(echo "${route}" | cut -d/ -f1)
-        route_prefix_len=$(echo "${route}" | cut -d/ -f2)
-        if [ "${route}" = "${route_prefix_len}" ]; then
-            # prefix length is not defined
-            route_prefix_len=${DEFAULT_PREFIX_LEN}
-        fi
-        case "${PLATFORM}" in
-            FreeBSD|OSX)
-                route -6n add ${route_prefix} -interface ${BRNAME} \
-                    ${next_hop} || exit 1
-                ;;
-            Linux)
-                ip route add ${route_prefix}/${route_prefix_len} \
-                    via ${next_hop} dev ${BRNAME} || exit 1
-                ;;
-            *)  ;;
-        esac
+        add_ipv6_route "${r}"
     done
 }
 
@@ -193,47 +202,55 @@ deactivate_forwarding() {
     fi
 }
 
+del_ipv6_addr() {
+    ADDRESS_ADDR=$(echo "${1}" | cut -d/ -f1)
+    PREFIX_LEN=$(echo "${1}" | cut -d/ -f2)
+    if [ "${1}" = "${PREFIX_LEN}" ]; then
+        # prefix length is not defined
+        PREFIX_LEN=${DEFAULT_PREFIX_LEN}
+    fi
+    case "${PLATFORM}" in
+        FreeBSD|OSX)
+            ifconfig ${BRNAME} inet6 ${ADDRESS_ADDR} prefixlen ${PREFIX_LEN} delete || exit 1
+            ;;
+        Linux)
+            ip address delete ${ADDRESS_ADDR}/${PREFIX_LEN} dev ${BRNAME} || exit 1
+            ;;
+        *)  ;;
+    esac
+}
+
 del_ipv6_addrs() {
     for a in ${BRIDGE_ADDRS}; do
-        address_addr=$(echo "${a}" | cut -d/ -f1)
-        prefix_len=$(echo "${a}" | cut -d/ -f2)
-        if [ "${a}" = "${prefix_len}" ]; then
-            # prefix length is not defined
-            prefix_len=${DEFAULT_PREFIX_LEN}
-        fi
-        case "${PLATFORM}" in
-            FreeBSD|OSX)
-                ifconfig ${BRNAME} inet6 ${address_addr} prefixlen ${prefix_len} delete || exit 1
-                ;;
-            Linux)
-                ip address delete ${address_addr}/${prefix_len} dev ${BRNAME} || exit 1
-                ;;
-            *)  ;;
-        esac
+        del_ipv6_addr "${a}"
     done
+}
+
+del_ipv6_route() {
+    ROUTE=$(echo "${1}" | cut -d- -f1)
+    NEXT_HOP=$(echo "${1}" | cut -d- -f2)
+    ROUTE_PREFIX=$(echo "${ROUTE}" | cut -d/ -f1)
+    ROUTE_PREFIX_LEN=$(echo "${ROUTE}" | cut -d/ -f2)
+    if [ "${ROUTE}" = "${ROUTE_PREFIX_LEN}" ]; then
+        # prefix length is not defined
+        ROUTE_PREFIX_LEN=${DEFAULT_PREFIX_LEN}
+    fi
+    case "${PLATFORM}" in
+        FreeBSD|OSX)
+            route -6 delete ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
+                -interface ${BRNAME} ${NEXT_HOP} || exit 1
+            ;;
+        Linux)
+            ip route delete ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
+                via ${NEXT_HOP} dev ${BRNAME} || exit 1
+            ;;
+        *)  ;;
+    esac
 }
 
 del_ipv6_routes() {
     for r in ${BRIDGE_ROUTES}; do
-        route=$(echo "${r}" | cut -d- -f1)
-        next_hop=$(echo "${r}" | cut -d- -f2)
-        route_prefix=$(echo "${route}" | cut -d/ -f1)
-        route_prefix_len=$(echo "${route}" | cut -d/ -f2)
-        if [ "${route}" = "${route_prefix_len}" ]; then
-            # prefix length is not defined
-            route_prefix_len=${DEFAULT_PREFIX_LEN}
-        fi
-        case "${PLATFORM}" in
-            FreeBSD|OSX)
-                route -6 delete ${route_prefix}/${route_prefix_len} \
-                    -interface ${BRNAME} ${next_hop} || exit 1
-                ;;
-            Linux)
-                ip route delete ${route_prefix}/${route_prefix_len} \
-                    via ${next_hop} dev ${BRNAME} || exit 1
-                ;;
-            *)  ;;
-        esac
+        del_ipv6_route "${r}"
     done
 }
 

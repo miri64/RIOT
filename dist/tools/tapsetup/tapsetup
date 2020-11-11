@@ -12,6 +12,7 @@ BRIDGE_ADDRS=""
 BRIDGE_ROUTES=""
 DEFAULT_PREFIX_LEN=128
 UPLINK=""
+_USER="${SUDO_USER}"
 
 usage() {
     echo "usage: ${PROGRAM} [arguments]" >&2
@@ -45,6 +46,8 @@ usage() {
     echo "                                 (ignored on OSX and FreeBSD)" >&2
     echo "   -u, --uplink:                 Optional uplink interface" >&2
     echo "                                 (ignored on OSX and FreeBSD)" >&2
+    echo "   -U <user>, --user <user>      Set user for created interfaces" >&2
+    echo "                                 (default: \$SUDO_USER)" >&2
     echo "   -h, --help:                   Prints this text" >&2
 }
 
@@ -306,14 +309,14 @@ create_iface() {
         FreeBSD)
             echo "creating ${NAME}${N}" || exit 1
             ifconfig ${NAME}${N} create || exit 1
-            chown ${SUDO_USER} /dev/${MODE}${N} || exit 1
+            chown ${_USER} /dev/${MODE}${N} || exit 1
             if [ -z "${TUNNAME}" ]; then
                 ifconfig ${BRNAME} addm ${NAME}${N} || exit 1
             fi
             ifconfig tap${N} up || exit 1 ;;
         Linux)
             echo "creating ${NAME}${N}"
-            ip tuntap add dev ${NAME}${N} mode ${MODE} user ${SUDO_USER} || exit 1
+            ip tuntap add dev ${NAME}${N} mode ${MODE} user ${_USER} || exit 1
             if [ -n "${DEACTIVATE_IPV6}" ]; then
                 echo 1 > /proc/sys/net/ipv6/conf/${NAME}${N}/disable_ipv6 || exit 1
             fi
@@ -322,7 +325,7 @@ create_iface() {
             fi
             ip link set ${NAME}${N} up || exit 1 ;;
         OSX)
-            chown ${SUDO_USER} /dev/${NAME}${N} || exit 1
+            chown ${_USER} /dev/${NAME}${N} || exit 1
             echo "start RIOT instance for ${NAME}${N} now and hit enter"
             read
             if [ -z "${TUNNAME}" ]; then
@@ -474,6 +477,16 @@ while true ; do
                     exit 2 ;;
                 *)
                     UPLINK="$2"
+                    shift 2 ;;
+            esac ;;
+        -U|--user)
+            case "$2" in
+                "")
+                    usage
+                    exit 2 ;;
+                *)
+                    id "$2" > /dev/null || exit 2
+                    _USER="$2"
                     shift 2 ;;
             esac ;;
         -t|--tap)

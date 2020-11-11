@@ -284,14 +284,14 @@ delete_bridge() {
 
 begin_iface() {
     if [ -z "${TUNNAME}" ]; then
-        MODE="tun"
-    else
         MODE="tap"
+    else
+        MODE="tun"
     fi
     case "${PLATFORM}" in
         FreeBSD)
-            kldload if_${MODE}      # module might be already loaded => error
-            sysctl net.link.${MODE}.user_open=1 ;;
+            kldload if_tap      # module might be already loaded => error
+            sysctl net.link.tap.user_open=1 ;;
         *)
             ;;
     esac
@@ -548,7 +548,7 @@ case "$(uname -s)" in
 esac
 
 if [ -n "${TUNNAME}" ]; then
-    echo "Only creating TUN interface ${TUNNAME}0 but no bridge"
+    echo "Only creating/deleting TUN interface ${TUNNAME}0 but no bridge"
     COUNT=1
     BRNAME="${TUNNAME}0"
 fi

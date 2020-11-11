@@ -341,10 +341,12 @@ get_master() {
     IFACE=$1
     case "${PLATFORM}" in
         Linux)
-            MASTER=$(ip link show ${IFACE} | grep -o "master \S\+" | cut -d' ' -f2)
+            MASTER=$(ip link show ${IFACE} 2>/dev/null | \
+                     grep -o "master \S\+" | cut -d' ' -f2)
             ;;
         FreeBSD|OSX)
-            for IF in $(ifconfig | grep -oiE "^[a-z0-9_-]+"); do
+            for IF in $(ifconfig 2>/dev/null | \
+                        grep -oiE "^[a-z0-9_-]+"); do
                 if ifconfig $IF | grep -q "member: $IFACE"; then
                     MASTER=${IF}
                     break
@@ -364,6 +366,14 @@ get_master() {
 
 list_bridge() {
     BRIDGE=$1
+    case "${PLATFORM}" in
+        Linux)
+            ip link show ${BRIDGE} > /dev/null || exit 1 ;;
+        FreeBSD|OSX)
+            ifconfig ${BRIDGE} > /dev/null || exit 1 ;;
+        *)
+            exit 1 ;;
+    esac
     IFACES=0
     echo -n "$BRIDGE:"
     case "${PLATFORM}" in
@@ -583,7 +593,7 @@ elif [ "${COMMAND}" = 'delete' ]; then
         done
     fi
 elif [ "${COMMAND}" = 'list' ]; then
-    list_bridge $(get_master "$BRNAME")
+    list_bridge $(get_master "$BRNAME") || exit 1
 else
     echo 'unknown command'
     exit 1

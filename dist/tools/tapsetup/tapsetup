@@ -1,6 +1,7 @@
 #!/bin/sh
 
 PROGRAM=$(basename $0)
+SUDO=sudo
 COUNT="2"
 COMMAND=""
 BRNAME="tapbr0"
@@ -12,7 +13,7 @@ BRIDGE_ADDRS=""
 BRIDGE_ROUTES=""
 DEFAULT_PREFIX_LEN=128
 UPLINK=""
-_USER="${SUDO_USER}"
+_USER="${USER}"
 
 usage() {
     echo "usage: ${PROGRAM} [arguments]" >&2
@@ -47,7 +48,7 @@ usage() {
     echo "   -u, --uplink:                 Optional uplink interface" >&2
     echo "                                 (ignored on OSX and FreeBSD)" >&2
     echo "   -U <user>, --user <user>      Set user for created interfaces" >&2
-    echo "                                 (default: \$SUDO_USER)" >&2
+    echo "                                 (default: \$USER)" >&2
     echo "   -h, --help:                   Prints this text" >&2
 }
 
@@ -70,19 +71,19 @@ activate_forwarding() {
     if [ ${ENABLE_FORWARDING} -eq 1 ]; then
         case "${PLATFORM}" in
             FreeBSD|OSX)
-                sysctl -w net.inet.ip.forwarding=1 || exit 1 ;;
+                ${SUDO} sysctl -w net.inet.ip.forwarding=1 || exit 1 ;;
             Linux)
-                sysctl -w net.ipv6.conf.${BRNAME}.forwarding=1 || exit 1
+                ${SUDO} sysctl -w net.ipv6.conf.${BRNAME}.forwarding=1 || exit 1
                 if [ -z ${TUNNAME} ]; then
-                    sysctl -w net.ipv6.conf.${BRNAME}.accept_ra=0 || exit 1
+                    ${SUDO} sysctl -w net.ipv6.conf.${BRNAME}.accept_ra=0 || exit 1
                 else
                     echo "Setting accept_ra=2 for all interfaces!" >&2
                     # See https://github.com/RIOT-OS/RIOT/issues/14689#issuecomment-668500682
                     for iface in $(ip link | grep -o "^[0-9]\+: [^:]\+" | cut -f2 -d' '); do
-                        sysctl -w net.ipv6.conf.${iface}.accept_ra=2 || exit 1
+                        ${SUDO} sysctl -w net.ipv6.conf.${iface}.accept_ra=2 || exit 1
                     done
                 fi
-                sysctl -w net.ipv6.conf.all.forwarding=1 || exit 1 ;;
+                ${SUDO} sysctl -w net.ipv6.conf.all.forwarding=1 || exit 1 ;;
             *)  ;;
         esac
     fi
@@ -98,10 +99,10 @@ add_ipv6_addr() {
     fi
     case "${PLATFORM}" in
         FreeBSD|OSX)
-            ifconfig ${BRNAME} inet6 ${ADDRESS} prefixlen ${PREFIX_LEN} || exit 1
+            ${SUDO} ifconfig ${BRNAME} inet6 ${ADDRESS} prefixlen ${PREFIX_LEN} || exit 1
             ;;
         Linux)
-            ip address add ${ADDRESS}/${PREFIX_LEN} dev ${BRNAME} || exit 1
+            ${SUDO} ip address add ${ADDRESS}/${PREFIX_LEN} dev ${BRNAME} || exit 1
             ;;
         *)  ;;
     esac
@@ -124,11 +125,11 @@ add_ipv6_route() {
     fi
     case "${PLATFORM}" in
         FreeBSD|OSX)
-            route -6n add ${ROUTE_PREFIX} -interface ${BRNAME} \
+            ${SUDO} route -6n add ${ROUTE_PREFIX} -interface ${BRNAME} \
                 ${NEXT_HOP} || exit 1
             ;;
         Linux)
-            ip route add ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
+            ${SUDO} ip route add ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
                 via ${NEXT_HOP} dev ${BRNAME} || exit 1
             ;;
         *)  ;;
@@ -146,19 +147,19 @@ create_bridge() {
 
     case "${PLATFORM}" in
         FreeBSD)
-            kldload if_bridge       # module might be already loaded => error
-            ifconfig ${BRNAME} create || exit 1 ;;
+            ${SUDO} kldload if_bridge       # module might be already loaded => error
+            ${SUDO} ifconfig ${BRNAME} create || exit 1 ;;
         Linux)
-            ip link add name ${BRNAME} type bridge || exit 1
+            ${SUDO} ip link add name ${BRNAME} type bridge || exit 1
             if [ -n "${UPLINK}" ]; then
                 echo "using uplink ${UPLINK}"
-                ip link set dev ${UPLINK} master ${BRNAME} || exit 1
+                ${SUDO} ip link set dev ${UPLINK} master ${BRNAME} || exit 1
             fi
             if [ -n "${DEACTIVATE_IPV6}" ]; then
-                echo 1 > /proc/sys/net/ipv6/conf/${BRNAME}/disable_ipv6 || exit 1
+                ${SUDO} sysctl -w net.ipv6.conf.${BRNAME}.disable_ipv6=1 || exit 1
             fi ;;
         OSX)
-            ifconfig ${BRNAME} create || exit 1 ;;
+            ${SUDO} ifconfig ${BRNAME} create || exit 1 ;;
         *)
             ;;
     esac
@@ -167,9 +168,9 @@ create_bridge() {
 up_bridge() {
     case "${PLATFORM}" in
         FreeBSD|OSX)
-            ifconfig ${BRNAME} up || exit 1 ;;
+            ${SUDO} ifconfig ${BRNAME} up || exit 1 ;;
         Linux)
-            ip link set ${BRNAME} up || exit 1
+            ${SUDO} ip link set ${BRNAME} up || exit 1
 
             # The bridge is now the new uplink
             if [ -n "${UPLINK}" ]; then
@@ -184,19 +185,19 @@ deactivate_forwarding() {
     if [ ${ENABLE_FORWARDING} -eq 1 ]; then
         case "${PLATFORM}" in
             FreeBSD|OSX)
-                sysctl -w net.inet.ip.forwarding=0 || exit 1 ;;
+                ${SUDO} sysctl -w net.inet.ip.forwarding=0 || exit 1 ;;
             Linux)
-                sysctl -w net.ipv6.conf.${BRNAME}.forwarding=0 || exit 1
+                ${SUDO} sysctl -w net.ipv6.conf.${BRNAME}.forwarding=0 || exit 1
                 if [ -z ${TUNNAME} ]; then
-                    sysctl -w net.ipv6.conf.${BRNAME}.accept_ra=1 || exit 1
+                    ${SUDO} sysctl -w net.ipv6.conf.${BRNAME}.accept_ra=1 || exit 1
                 else
                     echo "Setting accept_ra=1 for all interfaces!" >&2
                     # See https://github.com/RIOT-OS/RIOT/issues/14689#issuecomment-668500682
                     for iface in $(ip link | grep -o "^[0-9]\+: [^:]\+" | cut -f2 -d' '); do
-                        sysctl -w net.ipv6.conf.${iface}.accept_ra=1 || exit 1
+                        ${SUDO} sysctl -w net.ipv6.conf.${iface}.accept_ra=1 || exit 1
                     done
                 fi
-                sysctl -w net.ipv6.conf.all.forwarding=0 || exit 1 ;;
+                ${SUDO} sysctl -w net.ipv6.conf.all.forwarding=0 || exit 1 ;;
             *)  ;;
         esac
     fi
@@ -211,10 +212,11 @@ del_ipv6_addr() {
     fi
     case "${PLATFORM}" in
         FreeBSD|OSX)
-            ifconfig ${BRNAME} inet6 ${ADDRESS_ADDR} prefixlen ${PREFIX_LEN} delete || exit 1
+            ${SUDO} ifconfig ${BRNAME} inet6 ${ADDRESS_ADDR} prefixlen ${PREFIX_LEN} delete || \
+                exit 1
             ;;
         Linux)
-            ip address delete ${ADDRESS_ADDR}/${PREFIX_LEN} dev ${BRNAME} || exit 1
+            ${SUDO} ip address delete ${ADDRESS_ADDR}/${PREFIX_LEN} dev ${BRNAME} || exit 1
             ;;
         *)  ;;
     esac
@@ -237,11 +239,11 @@ del_ipv6_route() {
     fi
     case "${PLATFORM}" in
         FreeBSD|OSX)
-            route -6 delete ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
+            ${SUDO} route -6 delete ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
                 -interface ${BRNAME} ${NEXT_HOP} || exit 1
             ;;
         Linux)
-            ip route delete ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
+            ${SUDO} ip route delete ${ROUTE_PREFIX}/${ROUTE_PREFIX_LEN} \
                 via ${NEXT_HOP} dev ${BRNAME} || exit 1
             ;;
         *)  ;;
@@ -259,9 +261,9 @@ delete_iface() {
     echo "deleting ${IFACE}"
     case "${PLATFORM}" in
         FreeBSD|OSX)
-            ifconfig "${IFACE}" destroy ;;
+            ${SUDO} ifconfig "${IFACE}" destroy ;;
         Linux)
-            ip link delete "${IFACE}" ;;
+            ${SUDO} ip link delete "${IFACE}" ;;
         *) ;;
     esac
 }
@@ -269,13 +271,13 @@ delete_iface() {
 delete_bridge() {
     case "${PLATFORM}" in
         FreeBSD)
-            sysctl net.link.tap.user_open=0
+            ${SUDO} sysctl net.link.tap.user_open=0
             for IF in $(ifconfig ${BRIDGE} | grep -oiE "member: .+ " | cut -d' ' -f2); do
                 delete_iface ${IF}
             done
             delete_iface ${BRNAME} || exit 1
-            kldunload if_tap        # unloading might fail due to dependencies
-            kldunload if_bridge ;;
+            ${SUDO} kldunload if_tap    # unloading might fail due to dependencies
+            ${SUDO} kldunload if_bridge ;;
         Linux)
             for IF in $(ls /sys/class/net/${BRNAME}/brif); do
                 if [ "${IF}" != "${UPLINK}" ]; then
@@ -307,8 +309,8 @@ begin_iface() {
     fi
     case "${PLATFORM}" in
         FreeBSD)
-            kldload if_tap      # module might be already loaded => error
-            sysctl net.link.tap.user_open=1 ;;
+            ${SUDO} kldload if_tap      # module might be already loaded => error
+            ${SUDO} sysctl net.link.tap.user_open=1 ;;
         *)
             ;;
     esac
@@ -325,30 +327,30 @@ create_iface() {
     case "${PLATFORM}" in
         FreeBSD)
             echo "creating ${NAME}${N}" || exit 1
-            ifconfig ${NAME}${N} create || exit 1
-            chown ${_USER} /dev/${MODE}${N} || exit 1
+            ${SUDO} ifconfig ${NAME}${N} create || exit 1
+            ${SUDO} chown ${_USER} /dev/${MODE}${N} || exit 1
             if [ -z "${TUNNAME}" ]; then
-                ifconfig ${BRNAME} addm ${NAME}${N} || exit 1
+                ${SUDO} ifconfig ${BRNAME} addm ${NAME}${N} || exit 1
             fi
-            ifconfig tap${N} up || exit 1 ;;
+            ${SUDO} ifconfig tap${N} up || exit 1 ;;
         Linux)
             echo "creating ${NAME}${N}"
-            ip tuntap add dev ${NAME}${N} mode ${MODE} user ${_USER} || exit 1
+            ${SUDO} ip tuntap add dev ${NAME}${N} mode ${MODE} user ${_USER} || exit 1
             if [ -n "${DEACTIVATE_IPV6}" ]; then
-                echo 1 > /proc/sys/net/ipv6/conf/${NAME}${N}/disable_ipv6 || exit 1
+                ${SUDO} sysctl -w net.ipv6.conf.${NAME}${N}.disable_ipv6=1 || exit 1
             fi
             if [ -z "${TUNNAME}" ]; then
-                ip link set dev ${NAME}${N} master ${BRNAME} || exit 1
+                ${SUDO} ip link set dev ${NAME}${N} master ${BRNAME} || exit 1
             fi
-            ip link set ${NAME}${N} up || exit 1 ;;
+            ${SUDO} ip link set ${NAME}${N} up || exit 1 ;;
         OSX)
-            chown ${_USER} /dev/${NAME}${N} || exit 1
+            ${SUDO} chown ${_USER} /dev/${NAME}${N} || exit 1
             echo "start RIOT instance for ${NAME}${N} now and hit enter"
             read
             if [ -z "${TUNNAME}" ]; then
-                ifconfig ${BRNAME} addm ${NAME}${N} || exit 1
+                ${SUDO} ifconfig ${BRNAME} addm ${NAME}${N} || exit 1
             fi
-            ifconfig ${NAME}${N} up || exit 1 ;;
+            ${SUDO} ifconfig ${NAME}${N} up || exit 1 ;;
         *)
             ;;
     esac
@@ -544,9 +546,18 @@ done
 if [ -z "${COMMAND}" ]; then
     COMMAND="create"
 fi
-if [ -z "${SUDO_USER}" ] && [ "${COMMAND}" != "list" ]; then
-    echo 'Environment variable $SUDO_USER required; Please run with `sudo`'
-    exit 1
+if [ "${COMMAND}" != "list" ]; then
+    if ! command -v sudo 2>&1 > /dev/null; then
+        echo "sudo command not found" >&2
+        exit 1
+    else
+        echo "sudo required. Checking for permissions." >&2
+        sudo true
+        if [ "$?" -ne 0 ]; then
+            echo "No sudo permissions" >&2
+            exit 1
+        fi
+    fi
 fi
 case "$(uname -s)" in
     Darwin)

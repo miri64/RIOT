@@ -1,4 +1,5 @@
 [![Nightly CI status master][master-ci-badge]][master-ci-link]
+foobar
 [![GitHub release][release-badge]][release-link]
 [![License][license-badge]][license-link]
 [![API docs][api-badge]][api-link]

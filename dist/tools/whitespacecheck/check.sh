@@ -36,7 +36,7 @@ if [ -z "${BRANCH}" ]; then
 fi
 
 git -c core.whitespace="tab-in-indent,tabwidth=4" \
-    diff --check "$(git merge-base "${BRANCH}" HEAD)" -- *.[ch] ${IGNORE} \
+	diff --check "$(git merge-base "${BRANCH}" HEAD)" -- *.[ch] ${IGNORE} \
             | ${LOG}
 RESULT=$?
 
@@ -44,7 +44,7 @@ RESULT=$?
 # checked here, too
 git -c core.whitespace="trailing-space" \
     diff --check "$(git merge-base "${BRANCH}" HEAD)" -- . ${IGNORE} \
-            | ${LOG}
+   	         | ${LOG}
 
 TRAILING_RESULT=$?
 
@@ -66,3 +66,4 @@ then
 else
     exit 0
 fi
+

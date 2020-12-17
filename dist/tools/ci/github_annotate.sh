@@ -72,6 +72,9 @@ github_annotate_warning_no_file() {
     fi
 }
 
+github_annotate_error_no_file "Test"
+github_annotate_warning_no_file "Whaaaaa??"
+
 github_annotate_parse_log_default() {
     ANNOTATE_FUNC="${1:-github_annotate_error}"
 

@@ -252,3 +252,27 @@ def test_bridge_list_members():
     finally:
         bridge.delete()
         iface.delete()
+
+
+@pytest.mark.systemtest
+def test_interface_sysctl():
+    iface_name = 'tap47'
+    assert not Interface.exists(iface_name)
+    iface = Interface.create_tuntap(iface_name, mode='tap',
+                                    user=os.getlogin())
+    try:
+        iface.sysctl.all_ipv6_forwarding_enabled()
+        # try different combinations of having forwarding and accepting rtr_adv
+        iface.sysctl.enable_ipv6_forwarding()
+        iface.sysctl.accept_ipv6_rtr_adv()
+        iface.sysctl.disable_ipv6_forwarding()
+        iface.sysctl.enable_ipv6_forwarding()
+        iface.sysctl.disable_ipv6_forwarding()
+        iface.sysctl.do_not_accept_ipv6_rtr_adv()
+        iface.sysctl.activate_ipv6()
+        iface.sysctl.deactivate_ipv6()
+        iface.sysctl.accept_ipv6_rtr_adv()
+        iface.sysctl.do_not_accept_ipv6_rtr_adv()
+        iface.sysctl.ipv6_rtr_sol_retries(5)
+    finally:
+        iface.delete()

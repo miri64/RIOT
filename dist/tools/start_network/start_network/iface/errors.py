@@ -22,3 +22,7 @@ class IllegalOperationError(TypeError):
 
 class UnknownInterfaceError(Exception):
     pass
+
+
+class SystemControlError(OSError):
+    pass

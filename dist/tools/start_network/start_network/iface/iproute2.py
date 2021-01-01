@@ -17,9 +17,16 @@ from .errors import (IllegalInterfaceNameError,
                      IllegalOperationError,
                      InterfaceAlreadyExistsError,
                      UnknownInterfaceError)
+from .linux_sysctl import LinuxInterfaceSystemControl
 
 
 class IPRoute2Interface(BaseInterface):
+    _sysctl_class = LinuxInterfaceSystemControl
+
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self._sysctl = None
+
     @classmethod
     def _ip(cls, ip_args, *args, check=True, **kwargs):
         ip_args.insert(0, "ip")
@@ -64,6 +71,12 @@ class IPRoute2Interface(BaseInterface):
                 if match:
                     return IPRoute2Bridge(name=match[1])
             return None
+
+    @property
+    def sysctl(self):
+        if not self._sysctl:
+            self._sysctl = self._sysctl_class(self.name)
+        return self._sysctl
 
     @classmethod
     def iter(cls, iface_names=None):

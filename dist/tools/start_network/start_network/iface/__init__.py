@@ -20,6 +20,10 @@ def set_classes():
     if platform.startswith("linux"):
         interface_cls = IPRoute2Interface
         bridge_cls = IPRoute2Bridge
+    elif platform.startswith("darwin"):
+        pass
+    elif platform.startswith("freebsd"):
+        pass
     else:
         raise ValueError("Host platform '{}' is not supported"
                          .format(platform))

@@ -10,14 +10,15 @@
  * @{
  *
  * @file
+ * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  */
 
 #include <errno.h>
 #include <stdint.h>
 
 #include "cpu.h"
+#include "embUnit.h"
 #include "embUnit/embUnit.h"
-#include "tests-flashpage.h"
 
 /* need to define these values before including the header */
 #ifndef FLASHPAGE_SIZE
@@ -60,7 +61,7 @@ static void test_flashbase_page(void)
     TEST_ASSERT_EQUAL_INT(FLASHPAGE_NUMOF - 1, page);
 }
 
-Test *tests_flashpage_tests(void)
+static Test *tests_flashpage_tests(void)
 {
     EMB_UNIT_TESTFIXTURES(fixtures) {
         new_TestFixture(test_flashbase_addr),
@@ -72,8 +73,11 @@ Test *tests_flashpage_tests(void)
     return (Test *)&flashbase_tests;
 }
 
-void tests_flashpage(void)
+int main(void)
 {
+    TESTS_START();
     TESTS_RUN(tests_flashpage_tests());
+    TESTS_END();
+    return 0;
 }
 /** @} */

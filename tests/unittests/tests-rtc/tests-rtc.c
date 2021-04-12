@@ -12,6 +12,7 @@
  * @file
  */
 #include <string.h>
+#include <stdio.h>
 #include <errno.h>
 
 #include "embUnit.h"
@@ -47,7 +48,15 @@ static void test_rtc_compat(void)
 
     struct tm t2 = t1;
 
+    printf("pre t1: sec=%i, min=%i, hour=%i, mday=%i, mon=%i, year=%i, "
+           "wday=%i, yday=%i, isdst=%i\n", t1.tm_sec, t1.tm_min, t1.tm_hour,
+           t1.tm_mday, t1.tm_mon, t1.tm_year, t1.tm_wday, t1.tm_yday,
+           t1.tm_isdst);
     mktime(&t1);
+    printf("post t1: sec=%i, min=%i, hour=%i, mday=%i, mon=%i, year=%i, "
+           "wday=%i, yday=%i, isdst=%i\n", t1.tm_sec, t1.tm_min, t1.tm_hour,
+           t1.tm_mday, t1.tm_mon, t1.tm_year, t1.tm_wday, t1.tm_yday,
+           t1.tm_isdst);
     rtc_tm_normalize(&t2);
     _test_equal_tm(&t1, &t2);
 }
@@ -68,7 +77,15 @@ static void test_rtc_sec_wrap(void)
 
     struct tm t2 = t1;
 
+    printf("pre t1: sec=%i, min=%i, hour=%i, mday=%i, mon=%i, year=%i, "
+           "wday=%i, yday=%i, isdst=%i\n", t1.tm_sec, t1.tm_min, t1.tm_hour,
+           t1.tm_mday, t1.tm_mon, t1.tm_year, t1.tm_wday, t1.tm_yday,
+           t1.tm_isdst);
     mktime(&t1);
+    printf("post t1: sec=%i, min=%i, hour=%i, mday=%i, mon=%i, year=%i, "
+           "wday=%i, yday=%i, isdst=%i\n", t1.tm_sec, t1.tm_min, t1.tm_hour,
+           t1.tm_mday, t1.tm_mon, t1.tm_year, t1.tm_wday, t1.tm_yday,
+           t1.tm_isdst);
     rtc_tm_normalize(&t2);
     _test_equal_tm(&t1, &t2);
 }

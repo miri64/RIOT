@@ -46,8 +46,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytest_mark:
-          - "iotlab_creds"
+        # pytest_mark:
+        #   - "iotlab_creds"
         include:
           - pytest_mark: "not iotlab_creds"
             sudo: "sudo"
@@ -80,7 +80,7 @@ jobs:
     - name: Checkout RIOT
       uses: actions/checkout@v2
       with:
-        repository: RIOT-OS/RIOT
+        repository: miri64/RIOT
         path: RIOT
         fetch-depth: 1
         ref: ${{ github.event.inputs.riot_version }}
@@ -88,6 +88,10 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.x
+    - name: Update system
+      run: |
+        sudo apt-get update
+        sudo apt-get dist-upgrade -y
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
@@ -134,7 +138,7 @@ jobs:
           TTN_DEV_ID="riot_lorawan_1" \
           TTN_DEV_ID_ABP="riot_lorawan_1_abp" \
           RIOTBASE=${RIOTBASE} \
-          $(which tox) -- ${TOX_ARGS} -m "${{ matrix.pytest_mark }}"
+          $(which tox) -- ${TOX_ARGS} -m "${{ matrix.pytest_mark }}" -k 'spec01 and task02'
     - name: junit2html and XML deploy
       if: always()
       run: |

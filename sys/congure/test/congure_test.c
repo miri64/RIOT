@@ -20,6 +20,7 @@
 
 #include "clist.h"
 #include "fmt.h"
+#include "test_utils/result_output.h"
 
 #include "congure/test.h"
 
@@ -38,6 +39,19 @@ static bool _scn_u32_dec_with_zero(const char *str, size_t n, uint32_t *res)
     return true;
 }
 
+static void _turo_open(turo_t *turo)
+{
+    turo_init(turo);
+    turo_container_open(turo);
+}
+
+static int _error(turo_t *turo, const char *msg)
+{
+    turo_dict_string(turo, "msg", msg);
+    turo_container_close(turo, 1);
+    return 1;
+}
+
 int congure_test_clear_state(int argc, char **argv)
 {
     memset(congure_test_get_state(), 0, sizeof(congure_test_snd_t));
@@ -48,84 +62,92 @@ int congure_test_clear_state(int argc, char **argv)
 int congure_test_call_setup(int argc, char **argv)
 {
     congure_test_snd_t *c = congure_test_get_state();
+    turo_t turo;
     uint32_t id = 0;
 
+    _turo_open(&turo);
     if (argc > 1) {
         if (!_scn_u32_dec_with_zero(argv[1], strlen(argv[1]), &id)) {
-            print_str("{\"error\":\"`id` expected to be integer\"}\n");
-            return 1;
+            return _error(&turo, "`id` expected to be integer");
         }
     }
     if (congure_test_snd_setup(c, (unsigned)id) < 0) {
-        print_str("{\"error\":\"`id` is invalid\"}");
-        return 1;
+        return _error(&turo, "`id` is invalid");
     }
 
-    print_str("{");
-
-    print_str("\"success\":\"0x");
-    print_u32_hex((intptr_t)c);
-
-    print_str("\"}\n");
+    char ptr_str[11] = "0x";
+    fmt_u32_hex(&ptr_str[2], (intptr_t)c);
+    turo_dict_string(&turo, "obj", ptr_str);
+    turo_container_close(&turo, 0);
     return 0;
 }
 
-static inline bool _check_driver(congure_test_snd_t *c)
+static inline bool _check_driver2(turo_t *turo, congure_test_snd_t *c)
 {
     if (c->super.driver == NULL) {
-        print_str("{\"error\":\"State object not set up\"}\n");
+        _error(turo, "State object not set up");
         return false;
     }
     return true;
 }
 
+static inline bool _check_driver(congure_test_snd_t *c)
+{
+    turo_t turo;
+
+    turo_init(&turo);
+    turo_container_open(&turo);
+    return _check_driver2(&turo, c);
+}
+
 int congure_test_call_init(int argc, char **argv)
 {
     congure_test_snd_t *c = congure_test_get_state();
+    turo_t turo;
     uint32_t ctx;
     size_t arglen;
 
-    if (!_check_driver(c)) {
+    _turo_open(&turo);
+    if (!_check_driver2(&turo, c)) {
         return 1;
     }
     if (argc < 2) {
-        print_str("{\"error\":\"`ctx` argument expected\"}\n");
-        return 1;
+        return _error(&turo, "`ctx` argument expected");
     }
     arglen = strlen(argv[1]);
     if ((arglen < 3) || ((argv[1][0] != '0') && (argv[1][1] != 'x'))) {
-        print_str("{\"error\":\"`ctx` expected to be hex\"}\n");
-        return 1;
+        return _error(&turo, "`ctx` expected to be hex");
     }
     ctx = scn_u32_hex(&argv[1][2], arglen - 2);
     c->super.driver->init(&c->super, (void *)((intptr_t)ctx));
-    print_str("{\"success\":null}\n");
+    turo_container_close(&turo, 0);
     return 0;
 }
 
 int congure_test_call_inter_msg_interval(int argc, char **argv)
 {
     congure_test_snd_t *c = congure_test_get_state();
+    turo_t turo;
     uint32_t msg_size;
     int32_t res;
 
     (void)argc;
     (void)argv;
-    if (!_check_driver(c)) {
+    _turo_open(&turo);
+    if (!_check_driver2(&turo, c)) {
         return 1;
     }
     if (argc < 2) {
-        print_str("{\"error\":\"`msg_size` argument expected\"}\n");
+        _error(&turo, "`msg_size` argument expected");
         return 1;
     }
     if (!_scn_u32_dec_with_zero(argv[1], strlen(argv[1]), &msg_size)) {
-        print_str("{\"error\":\"`msg_size` expected to be integer\"}\n");
+        _error(&turo, "`msg_size` expected to be integer");
         return 1;
     }
     res = c->super.driver->inter_msg_interval(&c->super, msg_size);
-    print_str("{\"success\":");
-    print_s32_dec(res);
-    print_str("}\n");
+    turo_dict_s32(&turo, "imi", res);
+    turo_container_close(&turo, 0);
     return 0;
 }
 
@@ -171,11 +193,13 @@ int congure_test_add_msg(int argc, char **argv)
 
 int congure_test_msgs_reset(int argc, char **argv)
 {
+    turo_t turo;
     (void)argc;
     (void)argv;
+    turo_init(&turo);
     _msgs.next = NULL;
     _msgs_pool_idx = 0;
-    print_str("{\"success\":null}\n");
+    turo_simple_exit_status(&turo, 0);
     return 0;
 }
 

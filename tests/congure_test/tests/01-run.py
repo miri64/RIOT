@@ -19,7 +19,7 @@ from riotctrl_shell.congure_test import CongureTest
 
 
 class TestCongUREBase(unittest.TestCase):
-    DEBUG = False
+    DEBUG = True
 
     @classmethod
     def setUpClass(cls):
@@ -43,6 +43,13 @@ class TestCongUREBase(unittest.TestCase):
 
     def setUp(self):
         self.shell.cmd('cong_clear')
+
+    def assert_error(self, res, msg):
+        self.assertNotEqual(res[1]['exit_status'], 0)
+        self.assertEqual(res[0]['msg'], msg)
+
+    def assert_success(self, res):
+        self.assertEqual(res[len(res) - 1]['exit_status'], 0)
 
     def exec_cmd(self, cmd, timeout=-1, async_=False):
         res = self.shell.cmd(cmd, timeout, async_)
@@ -121,60 +128,61 @@ class TestCongUREWithoutSetup(TestCongUREBase):
     def test_setup_invalid_id(self):
         self.test_no_setup()
         res = self.exec_cmd('cong_setup abcd')
-        self.assertEqual(res, {'error': "`id` expected to be integer"})
+        self.assert_error(res, "`id` expected to be integer")
         res = self.exec_cmd('cong_setup 1')
-        self.assertEqual(res, {'error': "`id` is invalid"})
+        self.assert_error(res, "`id` is invalid")
 
     def test_setup(self):
         self.test_no_setup()
         res = self.exec_cmd('cong_setup')
-        # res['success'] is 32-bit hexadecimal number greater zero, representing
+        # res[0]['obj'] is 32-bit hexadecimal number greater zero, representing
         # the pointer to the congure state object
-        self.assertGreater(int(res['success'], base=16), 0)
-        self.assertEqual(len(res['success']), len('0x00000000'))
+        self.assert_success(res)
+        self.assertGreater(int(res[0]['obj'], base=16), 0)
+        self.assertEqual(len(res[0]['obj']), len('0x00000000'))
         res = self.exec_cmd('cong_setup 0')
-        # res['success'] is 32-bit hexadecimal number greater zero, representing
+        # res[0]['obj'] is 32-bit hexadecimal number greater zero, representing
         # the pointer to the congure state object
-        self.assertGreater(int(res['success'], base=16), 0)
-        self.assertEqual(len(res['success']), len('0x00000000'))
+        self.assertGreater(int(res[0]['obj'], base=16), 0)
+        self.assertEqual(len(res[0]['obj']), len('0x00000000'))
 
     def test_init_wo_setup(self):
         res = self.exec_cmd('cong_init 0x12345')
-        self.assertEqual(res, {'error': "State object not set up"})
+        self.assert_error(res, "State object not set up")
 
     def test_inter_msg_interval_wo_setup(self):
         res = self.exec_cmd('cong_imi 689')
-        self.assertEqual(res, {'error': "State object not set up"})
+        self.assert_error(res, "State object not set up")
 
     def test_report_wo_setup(self):
         res = self.exec_cmd('cong_report')
-        self.assertEqual(res, {'error': "State object not set up"})
+        self.assert_error(res, "State object not set up")
 
 
 class TestCongUREWithSetup(TestCongUREBase):
     def setUp(self):
         super().setUp()
         res = self.exec_cmd('cong_setup')
-        self.congure_state_ptr = int(res['success'], base=16)
+        self.congure_state_ptr = int(res[0]['obj'], base=16)
 
     def tearDown(self):
         res = self.exec_cmd('cong_msgs_reset')
-        self.assertIn('success', res)
+        self.assert_success(res)
 
     def test_init_no_args(self):
         res = self.exec_cmd('cong_init')
-        self.assertEqual(res, {'error': "`ctx` argument expected"})
+        self.assert_error(res, "`ctx` argument expected")
 
     def test_init_arg_not_hex(self):
         res = self.exec_cmd('cong_init foobar')
-        self.assertEqual(res, {'error': "`ctx` expected to be hex"})
+        self.assert_error(res, "`ctx` expected to be hex")
         res = self.exec_cmd('cong_init 123456')
-        self.assertEqual(res, {'error': "`ctx` expected to be hex"})
+        self.assert_error(res, "`ctx` expected to be hex")
 
     def test_init_success(self):
         ctx = 0x12345
         res = self.exec_cmd('cong_init 0x{ctx:x}'.format(ctx=ctx))
-        self.assertIsNone(res['success'])
+        self.assert_success(res)
         res = self.exec_cmd('state')
         self.assertEqual(res['init']['calls'], 1)
         self.assertEqual(int(res['init']['last_args']['c'], base=16),
@@ -184,16 +192,17 @@ class TestCongUREWithSetup(TestCongUREBase):
 
     def test_inter_msg_interval_no_args(self):
         res = self.exec_cmd('cong_imi')
-        self.assertEqual(res, {'error': '`msg_size` argument expected'})
+        self.assert_error(res, '`msg_size` argument expected')
 
     def test_inter_msg_interval_not_int(self):
         res = self.exec_cmd('cong_imi foobar')
-        self.assertEqual(res, {'error': '`msg_size` expected to be integer'})
+        self.assert_error(res, '`msg_size` expected to be integer')
 
     def test_inter_msg_interval_success(self):
         msg_size = 521
         res = self.exec_cmd('cong_imi {msg_size}'.format(msg_size=msg_size))
-        assert res == {'success': -1}
+        self.assert_success(res)
+        self.assertEqual(res[0]['imi'], -1)
         res = self.exec_cmd('state')
         self.assertEqual(res['inter_msg_interval']['calls'], 1)
         self.assertEqual(int(res['inter_msg_interval']['last_args']['c'],

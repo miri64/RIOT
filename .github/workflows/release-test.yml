@@ -90,6 +90,12 @@ jobs:
         path: Release-Specs
         fetch-depth: 1
         ref: ${{ github.event.inputs.release_specs_version }}
+    - name: Checkout RIOT-release-test-results
+      uses: actions/checkout@v2
+      with:
+        repository: RIOT-OS/RIOT-release-test-results
+        path: results
+        fetch-depth: 1
     - name: Checkout RIOT
       uses: actions/checkout@v2
       with:
@@ -139,6 +145,8 @@ jobs:
           GITHUB_REPOSITORY=${GITHUB_REPOSITORY} \
           GITHUB_RUN_ID=${GITHUB_RUN_ID} \
           GITHUB_SERVER_URL=${GITHUB_SERVER_URL} \
+          RESULT_OUTPUT_DIR=${GITHUB_WORKSPACE}/results \
+          RESULT_OUTPUT_URL="https://github.com/RIOT-OS/RIOT-release-test-results" \
           APPKEY="${{ secrets.CI_TTN_APPKEY  }}" \
           NWKSKEY="${{ secrets.CI_TTN_NWKSKEY_ABP  }}" \
           APPSKEY="${{ secrets.CI_TTN_APPSKEY_ABP  }}" \
@@ -168,6 +176,15 @@ jobs:
         mkdir test-reports/
         junit2html ${REPORT_XML} ${REPORT_NAME}.html
         cp ${REPORT_XML} ${REPORT_NAME}.xml
+    - name: Mark results with release tag
+      if: >-
+        always() &&
+        github.event_name == 'push' &&
+        startsWith(github.event.ref, 'refs/tags')
+      run: |
+        TAG=$(echo "${{github.event.ref}}" | sed 's#refs/tags/##')-$(date +%s)
+        git -C ${GITHUB_WORKSPACE}/results tag ${TAG}
+        git -C ${GITHUB_WORKSPACE}/results push --tags
     - uses: actions/upload-artifact@v2
       if: always()
       with:

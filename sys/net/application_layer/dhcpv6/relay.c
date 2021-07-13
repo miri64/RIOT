@@ -21,9 +21,11 @@
 #include "net/dhcpv6.h"
 #include "net/dhcpv6/client.h"      /* required for dhcpv6_duid_l2_t in _dhcpv6.h */
 #include "net/dhcpv6/relay.h"
+#include "net/ipv6/addr.h"
 #include "net/netif.h"
 #include "net/sock/async/event.h"
 #include "net/sock/udp.h"
+#include "net/sock/util.h"
 #include "thread.h"
 
 #include "_dhcpv6.h"
@@ -37,8 +39,9 @@ static char _auto_init_stack[THREAD_STACKSIZE_DEFAULT];
 static struct {
     uint8_t inbuf[CONFIG_DHCPV6_RELAY_BUFLEN];
     uint8_t outbuf[CONFIG_DHCPV6_RELAY_BUFLEN];
-    sock_udp_t listen_sock;
-    sock_udp_t fwd_sock;
+    sock_udp_t *listen_sock;
+    sock_udp_t *fwd_sock;
+    uint16_t fwd_netif;
 } _relay_state;
 
 static void *_dhcpv6_relay_auto_init_thread(void *);
@@ -83,40 +86,59 @@ void dhcpv6_relay_auto_init(void)
     }
 }
 
+static int _join_all_relays_and_server(uint16_t netif_id)
+{
+    netif_t *netif = netif_get_by_id(netif_id);
+    ipv6_addr_t all_relays_and_server = {
+        .u8 = DHCPV6_ALL_RELAY_AGENTS_AND_SERVERS
+    };
+    assert(netif != NULL);
+
+    return netif_set_opt(netif, NETOPT_IPV6_GROUP, 0, &all_relays_and_server,
+                         sizeof(all_relays_and_server));
+}
+
 void dhcpv6_relay_init(event_queue_t *eq, uint16_t listen_netif,
                        uint16_t fwd_netif)
 {
     sock_udp_ep_t local = { .family = AF_INET6, .port = DHCPV6_SERVER_PORT,
                             .netif = listen_netif };
-    sock_udp_ep_t remote = {
-        .family = AF_INET6,
-        .port = DHCPV6_SERVER_PORT,
-        .netif = fwd_netif,
-        .addr = {
-            .ipv6 = DHCPV6_ALL_RELAY_AGENTS_AND_SERVERS
-        }
-    };
+    static sock_udp_t listen_sock;
     int res;
 
     assert(eq->waiter != NULL);
-    /* initialize client-listening sock */
-    res = sock_udp_create(&_relay_state.listen_sock, &local, NULL, 0);
+    memset(&listen_sock, 0, sizeof(listen_sock));
+    _relay_state.fwd_netif = fwd_netif;
+    res = _join_all_relays_and_server(listen_netif);
+    if (res < 0) {
+        DEBUG("DHCPv6 relay: unable to join All_DHCP_Relay_Agents_and_Servers: "
 
+              "%d\n", -res);
+        return;
+    }
+    /* initialize client-listening sock */
+    res = sock_udp_create(&listen_sock, &local, NULL, 0);
     if (res < 0) {
         DEBUG("DHCPv6 relay: unable to open listen sock: %d\n", -res);
         return;
     }
-    sock_udp_event_init(&_relay_state.listen_sock, eq, _udp_handler, NULL);
+    _relay_state.listen_sock = &listen_sock;
+    sock_udp_event_init(_relay_state.listen_sock, eq, _udp_handler, NULL);
 
-    /* TODO: what if fwd_netif and listen_netif are the same? */
-    /* initialize forwarding / reply-listening sock */
-    local.netif = fwd_netif;
-    res = sock_udp_create(&_relay_state.fwd_sock, &local, &remote, 0);
-    if (res < 0) {
-        DEBUG("DHCPv6 relay: unable to open fwd sock: %d\n", -res);
-        return;
+    if (listen_netif != fwd_netif) {
+        static sock_udp_t fwd_sock;
+
+        memset(&fwd_sock, 0, sizeof(fwd_sock));
+        /* initialize forwarding / reply-listening sock */
+        local.netif = fwd_netif;
+        res = sock_udp_create(&fwd_sock, &local, NULL, 0);
+        if (res < 0) {
+            DEBUG("DHCPv6 relay: unable to open fwd sock: %d\n", -res);
+            return;
+        }
+        _relay_state.fwd_sock = &fwd_sock;
+        sock_udp_event_init(_relay_state.fwd_sock, eq, _udp_handler, NULL);
     }
-    sock_udp_event_init(&_relay_state.fwd_sock, eq, _udp_handler, NULL);
 }
 
 static void *_dhcpv6_relay_auto_init_thread(void *args)
@@ -143,7 +165,7 @@ static void _udp_handler(sock_udp_t *sock, sock_async_flags_t type,
             DEBUG("DHCPv6 relay: Error receiving UDP message: %d\n", (int)-res);
             return;
         }
-        _dhcpv6_handler(&remote, (uint8_t *)_relay_state.inbuf, res);
+        _dhcpv6_handler(&remote, _relay_state.inbuf, res);
     }
 }
 
@@ -205,6 +227,13 @@ static void _forward_msg(const sock_udp_ep_t *remote, const uint8_t *in_msg,
                          size_t in_msg_size, bool client_msg)
 {
     dhcpv6_relay_msg_t *out_fwd = (dhcpv6_relay_msg_t *)_relay_state.outbuf;
+    int res;
+    sock_udp_ep_t send_remote = {
+        .family = AF_INET6,
+        .netif = _relay_state.fwd_netif,
+        .addr = { .ipv6 = DHCPV6_ALL_RELAY_AGENTS_AND_SERVERS },
+        .port = DHCPV6_SERVER_PORT,
+    };
     uint16_t out_fwd_len = sizeof(dhcpv6_relay_msg_t);
 
     assert(in_msg_size <= UINT16_MAX);
@@ -223,7 +252,7 @@ static void _forward_msg(const sock_udp_ep_t *remote, const uint8_t *in_msg,
             DEBUG("DHCPv6 relay: incoming message exceeded hop limit\n");
             return;
         }
-        if (in_msg_size > sizeof(dhcpv6_relay_msg_t)) {
+        if (in_msg_size < sizeof(dhcpv6_relay_msg_t)) {
             DEBUG("DHCPv6 relay: incoming forward message too small\n");
             return;
         }
@@ -244,7 +273,8 @@ static void _forward_msg(const sock_udp_ep_t *remote, const uint8_t *in_msg,
     out_fwd_len += _compose_iid_opt(
         (dhcpv6_opt_iid_t *)&_relay_state.outbuf[out_fwd_len], remote
     );
-    if ((out_fwd_len + in_msg_size + sizeof(dhcpv6_opt_relay_msg_t))) {
+    if ((out_fwd_len + in_msg_size + sizeof(dhcpv6_opt_relay_msg_t)) >
+        sizeof(_relay_state.outbuf)) {
         DEBUG("DHCPv6 relay: output buffer too small to relay message\n");
         return;
     }
@@ -252,18 +282,15 @@ static void _forward_msg(const sock_udp_ep_t *remote, const uint8_t *in_msg,
         (dhcpv6_opt_relay_msg_t *)&_relay_state.outbuf[out_fwd_len],
         in_msg, in_msg_size
     );
-    if (sock_udp_send(&_relay_state.fwd_sock, out_fwd, out_fwd_len,
-                      NULL) < 0) {
-        DEBUG("DHCPv6 relay: sending forward message failed\n");
+    res = sock_udp_send(_relay_state.fwd_sock, out_fwd, out_fwd_len,
+                        &send_remote);
+    if (res < 0) {
+        DEBUG("DHCPv6 relay: sending forward message failed: %d\n", -res);
     }
 }
 
 static uint16_t _get_iid(dhcpv6_opt_iid_t *opt)
 {
-    if (byteorder_ntohs(opt->len) != sizeof(uint16_t)) {
-        DEBUG("DHCPv6 relay: unexpected interface-ID length\n");
-        return 0;
-    }
     return (opt->iid[0] << 8) | (opt->iid[1] & 0xff);
 }
 
@@ -282,38 +309,47 @@ static void _forward_reply(const uint8_t *in_msg, size_t in_msg_size)
     const dhcpv6_relay_msg_t *in_reply = (const dhcpv6_relay_msg_t *)in_msg;
     const uint8_t *out_msg = NULL;
     size_t out_msg_len = 0;
+    int res;
     sock_udp_ep_t target = { .family = AF_INET6 };
 
     if (in_msg_size < sizeof(dhcpv6_relay_msg_t)) {
         DEBUG("DHCPv6 relay: incoming reply message too small\n");
         return;
     }
-    in_msg_size += sizeof(dhcpv6_relay_msg_t);
+    in_msg_size -= sizeof(dhcpv6_relay_msg_t);
     for (dhcpv6_opt_t *opt = (dhcpv6_opt_t *)(&in_msg[sizeof(dhcpv6_relay_msg_t)]);
          in_msg_size > 0; in_msg_size -= _opt_len(opt), opt = _opt_next(opt)) {
 
+        uint16_t opt_len = byteorder_ntohs(opt->len);
+
+        if (opt_len > in_msg_size) {
+            DEBUG("DHCPv6 relay: invalid option size\n");
+            return;
+        }
         switch (byteorder_ntohs(opt->type)) {
             case DHCPV6_OPT_IID:
-                target.netif = _get_iid((dhcpv6_opt_iid_t *)opt);
-                if (target.netif == 0) {
+                if (opt_len != sizeof(uint16_t)) {
+                    DEBUG("DHCPv6 relay: unexpected interface-ID length\n");
                     return;
                 }
+                target.netif = _get_iid((dhcpv6_opt_iid_t *)opt);
                 break;
             case DHCPV6_OPT_RELAY_MSG: {
-                uint16_t opt_len = byteorder_ntohs(opt->len);
-
-                if (opt_len > in_msg_size) {
-                    DEBUG("DHCPv6 relay: invalid relay message option size\n");
-                }
                 out_msg = ((uint8_t *)opt) + sizeof(dhcpv6_opt_relay_msg_t);
                 out_msg_len = opt_len;
                 break;
             }
             default:
+                DEBUG("DHCPv6 relay: ignoring unknown option %u\n",
+                      byteorder_ntohs(opt->type));
                 break;
         }
     }
 
+    if (target.netif == 0) {
+        DEBUG("DHCPv6 relay: no interface ID option found\n");
+        return;
+    }
     if ((out_msg == NULL) || (out_msg_len == 0)) {
         DEBUG("DHCPv6 relay: no reply to forward found\n");
         return;
@@ -329,8 +365,19 @@ static void _forward_reply(const uint8_t *in_msg, size_t in_msg_size)
     assert(sizeof(in_reply->peer_address) == sizeof(target.addr.ipv6));
 
     memcpy(&target.addr.ipv6, &in_reply->peer_address, sizeof(target.addr.ipv6));
-    if (sock_udp_send(NULL, out_msg, out_msg_len, &target) < 0) {
-        DEBUG("DHCPv6 relay: forwarding reply towards target failed\n");
+    if (IS_USED(MODULE_SOCK_UTIL) && ENABLE_DEBUG) {
+        static char addr_str[IPV6_ADDR_MAX_STR_LEN];
+        uint16_t port;
+
+        if (sock_udp_ep_fmt(&target, addr_str, &port) > 0) {
+            DEBUG("DHCPv6 relay: forwarding reply towards target [%s]:%u\n",
+                  addr_str, port);
+        }
+    }
+    res = sock_udp_send(NULL, out_msg, out_msg_len, &target);
+    if (res < 0) {
+        DEBUG("DHCPv6 relay: forwarding reply towards target failed: %d\n",
+              -res);
     }
 }
 

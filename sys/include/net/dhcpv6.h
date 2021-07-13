@@ -70,7 +70,7 @@ extern "C" {
 #define DHCPV6_OPT_ORO              (6U)    /**< option request option */
 #define DHCPV6_OPT_PREF             (7U)    /**< preference option */
 #define DHCPV6_OPT_ELAPSED_TIME     (8U)    /**< elapsed time option */
-#define DHCPV6_OPT_RELAY_MSG        (10U)   /**< relay message option */
+#define DHCPV6_OPT_RELAY_MSG        (9U)    /**< relay message option */
 #define DHCPV6_OPT_STATUS           (13U)   /**< status code option */
 #define DHCPV6_OPT_IID              (18U)   /**< interface-id option */
 #define DHCPV6_OPT_DNS_RNS          (23U)   /**< DNS recursive name server option */

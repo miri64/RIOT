@@ -16,17 +16,24 @@
 #include <assert.h>
 
 #include "event.h"
+#include "event/thread.h"
+#include "log.h"
 #include "net/dhcpv6.h"
 #include "net/dhcpv6/client.h"      /* required for dhcpv6_duid_l2_t in _dhcpv6.h */
 #include "net/dhcpv6/relay.h"
+#include "net/netif.h"
 #include "net/sock/async/event.h"
 #include "net/sock/udp.h"
+#include "thread.h"
 
 #include "_dhcpv6.h"
 
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 #include "debug.h"
 
+#define AUTO_INIT_PRIO      (THREAD_PRIORITY_MAIN - 1)
+
+static char _auto_init_stack[THREAD_STACKSIZE_DEFAULT];
 static struct {
     uint8_t inbuf[CONFIG_DHCPV6_RELAY_BUFLEN];
     uint8_t outbuf[CONFIG_DHCPV6_RELAY_BUFLEN];
@@ -34,6 +41,7 @@ static struct {
     sock_udp_t fwd_sock;
 } _relay_state;
 
+static void *_dhcpv6_relay_auto_init_thread(void *);
 static void _udp_handler(sock_udp_t *sock, sock_async_flags_t type,
                          void *arg);
 static void _dhcpv6_handler(const sock_udp_ep_t *remote, const uint8_t *msg,
@@ -41,6 +49,39 @@ static void _dhcpv6_handler(const sock_udp_ep_t *remote, const uint8_t *msg,
 static void _forward_msg(const sock_udp_ep_t *remote, const uint8_t *msg, size_t
                          msg_size, bool client_msg);
 static void _forward_reply(const uint8_t *in_msg, size_t in_msg_size);
+
+static int16_t _only_one_netif(void)
+{
+    if (IS_USED(MODULE_NETIF)) {
+        netif_t *netif = netif_iter(NULL);
+
+        return (netif_iter(netif) == NULL) ? netif_get_id(netif) : -1;
+    }
+    else {
+        return -1;
+    }
+}
+
+void dhcpv6_relay_auto_init(void)
+{
+    if (IS_USED(MODULE_AUTO_INIT_DHCPV6_RELAY)) {
+        int16_t netif = _only_one_netif();
+        if (netif > 0) {
+            if (IS_USED(MODULE_EVENT_THREAD)) {
+                dhcpv6_relay_init(EVENT_PRIO_LOWEST, netif, netif);
+            }
+            else {
+                thread_create(_auto_init_stack, ARRAY_SIZE(_auto_init_stack),
+                              AUTO_INIT_PRIO, THREAD_CREATE_STACKTEST,
+                              _dhcpv6_relay_auto_init_thread,
+                              (void *)(intptr_t)netif, "dhcpv6_relay");
+            }
+        }
+        else {
+            LOG_WARNING("DHCPv6 relay: auto init failed, more than 1 interface\n");
+        }
+    }
+}
 
 void dhcpv6_relay_init(event_queue_t *eq, uint16_t listen_netif,
                        uint16_t fwd_netif)
@@ -55,17 +96,38 @@ void dhcpv6_relay_init(event_queue_t *eq, uint16_t listen_netif,
             .ipv6 = DHCPV6_ALL_RELAY_AGENTS_AND_SERVERS
         }
     };
-    assert(eq->waiter != NULL);
+    int res;
 
+    assert(eq->waiter != NULL);
     /* initialize client-listening sock */
-    sock_udp_create(&_relay_state.listen_sock, &local, NULL, 0);
+    res = sock_udp_create(&_relay_state.listen_sock, &local, NULL, 0);
+
+    if (res < 0) {
+        DEBUG("DHCPv6 relay: unable to open listen sock: %d\n", -res);
+        return;
+    }
     sock_udp_event_init(&_relay_state.listen_sock, eq, _udp_handler, NULL);
 
     /* TODO: what if fwd_netif and listen_netif are the same? */
     /* initialize forwarding / reply-listening sock */
     local.netif = fwd_netif;
-    sock_udp_create(&_relay_state.fwd_sock, &local, &remote, 0);
+    res = sock_udp_create(&_relay_state.fwd_sock, &local, &remote, 0);
+    if (res < 0) {
+        DEBUG("DHCPv6 relay: unable to open fwd sock: %d\n", -res);
+        return;
+    }
     sock_udp_event_init(&_relay_state.fwd_sock, eq, _udp_handler, NULL);
+}
+
+static void *_dhcpv6_relay_auto_init_thread(void *args)
+{
+    event_queue_t queue;
+    int16_t netif = (intptr_t)args;
+
+    event_queue_init(&queue);
+    dhcpv6_relay_init(&queue, netif, netif);
+    event_loop(&queue);
+    return NULL;
 }
 
 static void _udp_handler(sock_udp_t *sock, sock_async_flags_t type,

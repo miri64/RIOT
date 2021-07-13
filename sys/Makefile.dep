@@ -112,6 +112,10 @@ ifneq (,$(filter dhcpv6_relay,$(USEMODULE)))
   USEMODULE += sock_udp
 endif
 
+ifneq (,$(filter auto_init_dhcpv6_relay,$(USEMODULE)))
+  USEMODULE += dhcpv6_relay
+endif
+
 ifneq (,$(filter fuzzing,$(USEMODULE)))
   USEMODULE += netdev_test
   USEMODULE += gnrc_netif

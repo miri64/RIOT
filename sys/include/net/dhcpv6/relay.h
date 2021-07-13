@@ -41,6 +41,7 @@ extern "C" {
 #define CONFIG_DHCPV6_RELAY_BUFLEN      (256U)   /**< default length for send and receive buffer */
 #endif
 
+void dhcpv6_relay_auto_init(void);
 void dhcpv6_relay_init(event_queue_t *eq, uint16_t listen_netif,
                        uint16_t fwd_netif);
 

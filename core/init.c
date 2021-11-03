@@ -63,11 +63,18 @@ static void *main_trampoline(void *arg)
 static char main_stack[THREAD_STACKSIZE_MAIN];
 static char idle_stack[THREAD_STACKSIZE_IDLE];
 
+#if defined(DEVELHELP) && !IS_USED(MODULE_MPU_STACK_GUARD)
+void sched_warn_stack_full(void);
+#endif
+
 static void *idle_thread(void *arg)
 {
     (void)arg;
 
     while (1) {
+#if defined(DEVELHELP) && !IS_USED(MODULE_MPU_STACK_GUARD)
+        sched_warn_stack_full();
+#endif
         pm_set_lowest();
     }
 

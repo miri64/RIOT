@@ -134,6 +134,25 @@ static void _unschedule(thread_t *active_thread)
 #endif
 }
 
+#if defined(DEVELHELP) && !IS_USED(MODULE_MPU_STACK_GUARD)
+void sched_warn_stack_full(void)
+{
+    for (unsigned i = 0; i < max_threads; i++) {
+        const thread_t *thread = (thread_t *)sched_threads[i];
+
+        if (thread != NULL) {
+            if (!thread_measure_stack_free(thread_get_stackstart(thread))) {
+#ifdef CONFIG_THREAD_NAMES
+                LOG_WARNING("sched: stack of thread %d is full\n", thread->pid);
+#else
+                LOG_WARNING("sched: stack of thread %s (%d) is full\n", thread->name, thread->pid);
+#endif
+            }
+        }
+    }
+}
+#endif  /* defined(DEVELHELP) && !IS_USED(MODULE_MPU_STACK_GUARD) */
+
 thread_t *__attribute__((used)) sched_run(void)
 {
     thread_t *active_thread = thread_get_active();
@@ -145,6 +164,9 @@ thread_t *__attribute__((used)) sched_run(void)
             active_thread = NULL;
         }
 
+#if defined(DEVELHELP) && !IS_USED(MODULE_MPU_STACK_GUARD)
+        sched_warn_stack_full();
+#endif
         do {
             sched_arch_idle();
         } while (!runqueue_bitcache);

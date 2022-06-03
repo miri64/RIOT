@@ -22,6 +22,13 @@ ifeq (1,$(COAPS))
   KCONFIG_ADD_CONFIG += $(CURDIR)/coaps.config
 endif
 
+OSCORE ?= 0
+
+ifeq (1,$(OSCORE))
+  USEMODULE += gcoap_dns_oscore
+  CFLAGS += -DOSCORE_NANOCOAP_MEMMOVE_MODE
+endif
+
 CFLAGS += -DTEST_SUITES
 CFLAGS += -DHAS_SOCK_DNS_MOCK=1
 

@@ -35,6 +35,10 @@
 #endif
 #include "net/gcoap/dns.h"
 
+#if IS_USED(MODULE_GCOAP_DNS_OSCORE)
+#include "oscore_native/crypto.h"
+#endif
+
 #define PSK_ID_LEN          32U
 #define PSK_LEN             32U
 
@@ -347,6 +351,110 @@ static int _creds(int argc, char **argv)
     return 0;
 }
 
+static bool _parse_singlehex(char hex, uint8_t *target) {
+    if ('0' <= hex && hex <= '9') {
+        *target = hex - '0';
+        return true;
+    }
+    if ('a' <= hex && hex <= 'f') {
+        *target = hex - 'a' + 10;
+        return true;
+    }
+    if ('A' <= hex && hex <= 'F') {
+        *target = hex - 'A' + 10;
+        return true;
+    }
+    return false;
+}
+
+static bool _parse_hex(const char *hex, size_t len, uint8_t *data) {
+    uint8_t acc;
+    while (len) {
+        if (!_parse_singlehex(*hex++, &acc)) {
+            return false;
+        }
+        *data = acc << 4;
+        if (!_parse_singlehex(*hex++, &acc)) {
+            return false;
+        }
+        *data |= acc;
+        len--;
+        data++;
+    }
+    if (len == 0 && *hex == '-') {
+        hex++;
+    }
+    return *hex == 0;
+}
+
+#if IS_USED(MODULE_GCOAP_DNS_OSCORE)
+static bool _parse_i64(char *chars, int64_t *out) {
+    char *end = NULL;
+    *out = strtoll(chars, &end, 10);
+    if (*end != ' ' && *end != '\0' && *end != '\n')
+        return false;
+    return true;
+}
+
+static int _userctx(int argc, char **argv)
+{
+    int64_t alg_num;
+    uint8_t sender_key[32], recipient_key[32];
+    uint8_t common_iv[20];
+    uint8_t sender_id[OSCORE_KEYID_MAXLEN], recipient_id[OSCORE_KEYID_MAXLEN];
+    size_t sender_id_len, recipient_id_len;
+
+    if (argc < 7) {
+        printf("usage: %s <alg> <sender-id> <recipient-id> <common-iv> "
+               "<sender-key> <recipient-key>", argv[0]);
+        return 1;
+    }
+
+    if (!_parse_i64(argv[1], &alg_num)) {
+        printf("Algorithm number was not a number\n");
+        return 1;
+    }
+    sender_id_len = strlen(argv[2]) / 2;
+    if (sender_id_len > OSCORE_KEYID_MAXLEN) {
+        printf("Sender ID too long\n");
+        return 1;
+    }
+    if (!_parse_hex(argv[2], sender_id_len, sender_id)) {
+        printf("Invalid Sender ID\n");
+        return 1;
+    }
+    recipient_id_len = strlen(argv[2]) / 2;
+    if (recipient_id_len > OSCORE_KEYID_MAXLEN) {
+        printf("Recipient ID too long\n");
+        return 1;
+    }
+    if (!_parse_hex(argv[3], recipient_id_len, recipient_id)) {
+        printf("Invalid Recipient ID\n");
+        return 1;
+    }
+    if (!_parse_hex(argv[4], oscore_crypto_aead_get_ivlength(alg_num), common_iv)) {
+        printf("Invalid Common IV\n");
+        return 1;
+    }
+    if (!_parse_hex(argv[5], oscore_crypto_aead_get_keylength(alg_num), sender_key)) {
+        printf("Invalid Sender Key'\n");
+        return 1;
+    }
+    if (!_parse_hex(argv[6], oscore_crypto_aead_get_keylength(alg_num), recipient_key)) {
+        printf("Invalid Recipient Key\n");
+        return 1;
+    }
+    if (gcoap_dns_oscore_set_secctx(alg_num, sender_id, sender_id_len,
+                                    recipient_id, recipient_id_len,
+                                    common_iv, sender_key, recipient_key) < 0) {
+        perror("Unable to set OSCORE user context");
+        return 1;
+    }
+    printf("Successfully added user context\n");
+    return 0;
+}
+#endif
+
 static int _proxy(int argc, char **argv)
 {
     if (argc < 2) {
@@ -461,30 +569,18 @@ static int _query(int argc, char **argv)
 
 static ssize_t _copy_mock_response(const char *str)
 {
-    bool msn = true;   /* most significant nibble */
-    ssize_t start = _mock_response_len;
+    size_t len = strlen(str) / 2;
+    size_t start = _mock_response_len;
 
-    for (unsigned i = 0; i < strlen(str); i++) {
-        uint8_t nibble = scn_u32_hex(&str[i], 1);
-
-        if (_mock_response_len == CONFIG_DNS_MSG_LEN) {
-            break;
-        }
-        if (msn) {
-            _mock_response[_mock_response_len] = nibble << 4;
-        }
-        else {
-            _mock_response[_mock_response_len++] |= nibble;
-        }
-        msn = !msn;
-    }
-    if (!msn) {
-        _mock_response_len++;
-    }
-    if (_mock_response_len >= CONFIG_DNS_MSG_LEN) {
+    if ((_mock_response_len + len) >= CONFIG_DNS_MSG_LEN) {
         printf("Too many bytes added to response");
         return -ENOBUFS;
     }
+    if (!_parse_hex(str, len, &_mock_response[start])) {
+        printf("Unable to parse response hex\n");
+        return -ENOBUFS;
+    }
+    _mock_response_len += len;
     return _mock_response_len - start;
 }
 
@@ -556,6 +652,9 @@ static const shell_command_t _shell_commands[] = {
     { "query", "Sends DoC query for a hostname", _query},
     { "resp", "Set static response for mock DoC server", _resp},
     { "has_dns_cache", "Check if DNS cache is activated", _has_dns_cache},
+#if IS_USED(MODULE_GCOAP_DNS_OSCORE)
+    { "userctx", "Adds/removes OSCORE security context for DoC server", _userctx},
+#endif
     { NULL, NULL, NULL }
 };
 

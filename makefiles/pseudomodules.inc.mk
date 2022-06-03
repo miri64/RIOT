@@ -80,6 +80,7 @@ PSEUDOMODULES += gcoap_dtls
 PSEUDOMODULES += gcoap_dns
 ## Enable the @ref gcoap_dns_server_proxy_set function
 PSEUDOMODULES += gcoap_dns_proxied
+PSEUDOMODULES += gcoap_dns_oscore
 ## @}
 PSEUDOMODULES += fido2_tests
 ## @addtogroup net_dhcpv6_client

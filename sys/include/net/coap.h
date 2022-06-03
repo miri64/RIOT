@@ -48,6 +48,7 @@ extern "C" {
 #define COAP_OPT_IF_NONE_MATCH  (5)
 #define COAP_OPT_OBSERVE        (6)
 #define COAP_OPT_LOCATION_PATH  (8)
+#define COAP_OPT_OSCORE         (9)
 #define COAP_OPT_URI_PATH       (11)
 #define COAP_OPT_CONTENT_FORMAT (12)
 #define COAP_OPT_MAX_AGE        (14)
@@ -82,6 +83,7 @@ extern "C" {
  * @see [RFC 8613](https://datatracker.ietf.org/doc/html/rfc8613)
  */
 #define COAP_OPT_SIZE1          (60)
+#define COAP_OPT_ECHO           (252)
 /**
  * @brief suppress CoAP response
  * @see [RFC 7968](https://datatracker.ietf.org/doc/html/rfc7967)

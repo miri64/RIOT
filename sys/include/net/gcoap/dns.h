@@ -211,6 +211,13 @@ bool gcoap_dns_server_proxy_is_set(void);
  */
 ssize_t gcoap_dns_server_proxy_get(char *proxy, size_t proxy_len);
 
+int gcoap_dns_oscore_set_secctx(int64_t alg_num,
+                                const uint8_t *sender_id, size_t sender_id_len,
+                                const uint8_t *recipient_id, size_t recipient_id_len,
+                                const uint8_t *common_iv,
+                                const uint8_t *sender_key,
+                                const uint8_t *recipient_key);
+
 #ifdef __cplusplus
 }
 #endif

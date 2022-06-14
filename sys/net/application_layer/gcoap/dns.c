@@ -29,6 +29,7 @@
 #include "net/sock/dns.h"
 #include "net/sock/udp.h"
 #include "net/sock/util.h"
+#include "periph/flashpage.h"
 #include "od.h"
 #include "random.h"
 #include "uri_parser.h"
@@ -132,6 +133,15 @@ uint8_t _ctx_recvd_echo_data[32];
 ssize_t _ctx_recvd_echo_size = -1;
 static uint64_t _userctx_last_persisted;
 #endif
+
+#if IS_USED(MODULE_PERIPH_FLASHPAGE_IN_ADDRESS_SPACE)
+FLASH_WRITABLE_INIT(_persistent_storage, 1);
+
+static uint8_t page_mem[FLASHPAGE_SIZE] __attribute__((aligned(FLASHPAGE_WRITE_BLOCK_ALIGNMENT)));
+
+static_assert(FLASHPAGE_SIZE >= (2 * sizeof(uint64_t)));
+#endif
+
 
 static inline bool _dns_server_uri_isset(void);
 #if IS_USED(MODULE_GCOAP_DTLS)
@@ -590,6 +600,24 @@ static bool _oscore_secctx_set(void)
 #endif
 }
 
+#if IS_USED(MODULE_GCOAP_DNS_OSCORE)
+static void _may_persist(uint64_t wanted)
+{
+#if IS_USED(MODULE_PERIPH_FLASHPAGE_IN_ADDRESS_SPACE)
+    unsigned pagenum = flashpage_page(_persistent_storage);
+    uint64_t inv_wanted = wanted ^ UINT64_MAX;
+
+    flashpage_erase(pagenum);
+    memcpy(page_mem, &wanted, sizeof(wanted));
+    /* store inverse of wanted after wanted, to ensure on read we do not read garbage */
+    memcpy(&page_mem[sizeof(wanted)], &inv_wanted, sizeof(inv_wanted));
+    flashpage_write_and_verify(pagenum, page_mem);
+#endif
+    oscore_context_b1_allow_high(&_context_u, wanted);
+    _userctx_last_persisted = wanted;
+}
+#endif
+
 static ssize_t _req_oscore(_req_ctx_t *context)
 {
 #if IS_USED(MODULE_GCOAP_DNS_OSCORE)
@@ -604,8 +632,7 @@ static ssize_t _req_oscore(_req_ctx_t *context)
     oscore_msg_native_t native = { .pkt = pdu };
 
     if (wanted != _userctx_last_persisted) {
-        oscore_context_b1_allow_high(&_context_u, wanted);
-        _userctx_last_persisted = wanted;
+        _may_persist(wanted);
     }
     if (oscore_prepare_request(native, &oscmsg, &_secctx_u,
                                &context->oscore_request_id) != OSCORE_PREPARE_OK) {
@@ -1025,6 +1052,10 @@ int gcoap_dns_oscore_set_secctx(int64_t alg_num,
 {
 #if IS_USED(MODULE_GCOAP_DNS_OSCORE)
     static struct oscore_context_primitive_immutables key;
+#if IS_USED(MODULE_PERIPH_FLASHPAGE_IN_ADDRESS_SPACE)
+    unsigned pagenum = flashpage_page(_persistent_storage);
+#endif
+    uint64_t wanted = 0;
 
     _userctx_last_persisted = -1;
     key.sender_id_len = sender_id_len,
@@ -1049,11 +1080,21 @@ int gcoap_dns_oscore_set_secctx(int64_t alg_num,
     memcpy(key.sender_key, sender_key, oscore_crypto_aead_get_keylength(key.aeadalg));
     memcpy(key.recipient_key, recipient_key, oscore_crypto_aead_get_keylength(key.aeadalg));
 
-    oscore_context_b1_initialize(&_context_u, &key, 0, NULL);
+#if IS_USED(MODULE_PERIPH_FLASHPAGE_IN_ADDRESS_SPACE)
+    uint64_t inv_wanted;
+
+    flashpage_read(pagenum, page_mem);
+    memcpy(&wanted, page_mem, sizeof(wanted));
+    /* check if inverse of wanted is after wanted to ensure we do not read garbage */
+    memcpy(&inv_wanted, &page_mem[sizeof(wanted)], sizeof(inv_wanted));
+    if (~(inv_wanted ^ wanted)) {
+        wanted = 0;
+    }
+#endif
+    oscore_context_b1_initialize(&_context_u, &key, wanted, NULL);
     _ctx_recvd_echo_size = -1;
-    uint64_t wanted = oscore_context_b1_get_wanted(&_context_u);
-    oscore_context_b1_allow_high(&_context_u, wanted);
-    _userctx_last_persisted = wanted;
+    wanted = oscore_context_b1_get_wanted(&_context_u);
+    _may_persist(wanted);
     return 0;
 #endif
     (void)alg_num;

@@ -99,6 +99,8 @@ def setup_child(timeout=10, spawnclass=pexpect.spawnu, env=None, logfile=None):
 
 def teardown_child(child):
     pid = child.pid
+    child.close()
+    time.sleep(1)
     try:
         os.killpg(os.getpgid(pid), signal.SIGTERM)
     except ProcessLookupError:
@@ -111,7 +113,6 @@ def teardown_child(child):
         except ProcessLookupError:
             # This is what we actually wanted
             pass
-    child.close()
 
 
 def modules_list():

@@ -14,4 +14,13 @@ USEMODULE += libschc_coap
 
 CFLAGS += -DEVENT_THREAD_STACKSIZE_DEFAULT=THREAD_STACKSIZE_DEFAULT
 
+CFLAGS +=  -fprofile-arcs -ftest-coverage
+CFLAGS_OPT += -O0
+LINKFLAGS += -fprofile-arcs -ftest-coverage
+
 include $(RIOTBASE)/Makefile.include
+
+COVERAGETESTDEPS ?= $(filter term test,$(MAKECMDGOALS))
+
+coverage-report: $(COVERAGETESTDEPS)
+	gcovr -b -e "../../(boards|core|cpu|driver|sys)" --txt --html-details coverage/coverage.html -r ../../

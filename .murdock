@@ -3,7 +3,7 @@
 # uncomment and change this to limit builds, e.g.,
 #export BOARDS="samr21-xpro native"
 # and / or
-#export APPS="examples/hello-world tests/unittests"
+export APPS="tests/pkg_libschc"
 
 # this configures boards that are available via pifleet
 case "${CI_MURDOCK_PROJECT}" in

@@ -50,8 +50,7 @@ static const struct schc_ipv6_rule_t ipv6_rule1 = {
         { IP6_DEVPRE,    0,  64,   1, BI,   {
                 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00
             },                                                  &mo_equal,      NOTSENT     },
-        /* match the 60 first bits, send the last 4 */
-        { IP6_DEVIID,   60,  64,   1, BI,   {
+        { IP6_DEVIID,    0,  64,   1, BI,   {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
             },                                                  &mo_equal,      NOTSENT },
         { IP6_APPPRE,    4,  64,   1, BI,   {
@@ -61,7 +60,7 @@ static const struct schc_ipv6_rule_t ipv6_rule1 = {
                 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x03, 0x00, 0x00,
                 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x04, 0x00, 0x00
             },                                                  &mo_matchmap,   MAPPINGSENT },
-        { IP6_APPIID,   60,  64,   1, BI,   {
+        { IP6_APPIID,    0,  64,   1, BI,   {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02
             },                                                  &mo_equal,      NOTSENT },
     }
@@ -164,14 +163,13 @@ static const struct schc_coap_rule_t coap_rule1 = {
 
 /* POST temperature value */
 static const struct schc_coap_rule_t coap_rule2 = {
-    .up = 7, .down = 7, .length = 11,
+    .up = 7, .down = 7, .length = 10,
     {
         /* field,       ML, len, pos, dir,  val,                MO,             CDA         */
         { COAP_V,        0,   2,   1, BI,   {COAP_V1},          &mo_equal,      NOTSENT     },
-        /* mo_matchmap would be more elegant for CoAP type, but is not supported by
-         * libSCHC yet */
-        { COAP_T,        0,   2,   1, UP,   {COAP_TYPE_ACK},    &mo_equal,      NOTSENT     },
-        { COAP_T,        0,   2,   1, DOWN, {COAP_TYPE_CON},    &mo_equal,      NOTSENT     },
+        { COAP_T,        3,   2,   1,  BI,  {
+                COAP_TYPE_CON, COAP_TYPE_NON, COAP_TYPE_ACK,
+            },                                                  &mo_matchmap,   MAPPINGSENT },
         { COAP_TKL,      0,   4,   1, BI,   {4},                &mo_equal,      NOTSENT     },
         { COAP_C,        0,   8,   1, UP,   {COAP_CODE_CONTENT}, &mo_equal,     NOTSENT     },
         { COAP_C,        0,   8,   1, DOWN, {COAP_METHOD_GET},  &mo_equal,      NOTSENT     },

@@ -322,6 +322,29 @@ extern "C" {
 /** @} */
 
 /**
+ * @name ST25DV04K constants
+ * @{
+ */
+/**
+ * @brief   256 byte memory
+ */
+#define ST25DV04K_EEPROM_SIZE             (512U)
+/**
+ * @brief   16 pages of 16 bytes each
+ */
+#define ST25DV04K_PAGE_SIZE               (4U)
+/**
+ * @brief   Delay to complete write operation
+ */
+#define ST25DV04K_PAGE_WRITE_DELAY_US     (5000U)
+/**
+ * @brief   Number of poll attempts
+ */
+#define ST25DV04K_MAX_POLLS               (1 + (ST25DV04K_PAGE_WRITE_DELAY_US \
+                                         / AT24CXXX_POLL_DELAY_US))
+/** @} */
+
+/**
  * @name Set constants depending on module
  * @{
  */
@@ -373,6 +396,10 @@ extern "C" {
 #define AT24CXXX_EEPROM_SIZE            (AT24MAC_EEPROM_SIZE)
 #define AT24CXXX_PAGE_SIZE              (AT24MAC_PAGE_SIZE)
 #define AT24CXXX_MAX_POLLS              (AT24MAC_MAX_POLLS)
+#elif IS_USED(MODULE_ST25DV04K)
+#define AT24CXXX_EEPROM_SIZE            (ST25DV04K_EEPROM_SIZE)
+#define AT24CXXX_PAGE_SIZE              (ST25DV04K_PAGE_SIZE)
+#define AT24CXXX_MAX_POLLS              (ST25DV04K_MAX_POLLS)
 #else /* minimal */
 #define AT24CXXX_EEPROM_SIZE            (128U)  /**< EEPROM size */
 #define AT24CXXX_PAGE_SIZE              (4U)    /**< page size */

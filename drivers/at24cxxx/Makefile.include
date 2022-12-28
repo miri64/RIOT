@@ -1,4 +1,5 @@
 PSEUDOMODULES += at24c%
+PSEUDOMODULES += st25dv%
 # handle at24cxxx being a distinct module
 NO_PSEUDOMODULES += at24cxxx
 

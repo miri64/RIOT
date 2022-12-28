@@ -148,6 +148,9 @@ extern "C" {
 #define UART0_TXD   GPIO21  /**< direct I/O pin for UART_DEV(0) TxD, can't be changed */
 #define UART0_RXD   GPIO20  /**< direct I/O pin for UART_DEV(0) RxD, can't be changed */
 
+#define UART1_TXD   GPIO7   /**< IrDA TX */
+#define UART1_RXD   GPIO3   /**< IrDA RX */
+
 /** @} */
 
 #ifdef __cplusplus

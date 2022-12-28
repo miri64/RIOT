@@ -114,6 +114,8 @@
 #define WS281X_PARAM_NUMOF  16
 #endif
 
+#define AT24CXXX_PARAM_ADDR 0x53
+
 /* include common board definitions as last step */
 #include "board_common.h"
 

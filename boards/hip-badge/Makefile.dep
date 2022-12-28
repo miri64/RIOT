@@ -1,1 +1,5 @@
+ifneq (,$(filter saul_default,$(USEMODULE)))
+  USEMODULE += sgp30
+endif
+
 include $(RIOTBOARD)/common/esp32c3/Makefile.dep

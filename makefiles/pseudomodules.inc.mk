@@ -479,6 +479,7 @@ PSEUDOMODULES += stdio_telnet
 PSEUDOMODULES += stdio_uart_onlcr
 ## @}
 PSEUDOMODULES += stdio_uart_rx
+PSEUDOMODULES += stdio_usb_serial_jtag_rx
 PSEUDOMODULES += stm32_eth
 PSEUDOMODULES += stm32_eth_auto
 PSEUDOMODULES += stm32_eth_link_up

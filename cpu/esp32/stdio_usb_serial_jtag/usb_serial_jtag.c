@@ -74,7 +74,7 @@ ssize_t stdio_write(const void *buffer, size_t len)
 
 ssize_t stdio_read(void* buffer, size_t count)
 {
-    if (1) { // IS_USED(MODULE_STDIO_UART_RX)) {
+    if (IS_USED(MODULE_STDIO_USB_SERIAL_JTAG_RX)) {
         return (ssize_t)isrpipe_read(&stdio_serial_isrpipe, buffer, count);
     }
 
@@ -100,6 +100,10 @@ static void IRAM _serial_intr_handler(void *arg)
 
 void stdio_init(void)
 {
+    if (!IS_USED(MODULE_STDIO_USB_SERIAL_JTAG_RX)) {
+        return;
+    }
+
     /* route all UART interrupt sources to same the CPU interrupt */
     intr_matrix_set(PRO_CPU_NUM, ETS_USB_SERIAL_JTAG_INTR_SOURCE, CPU_INUM_SERIAL_JTAG);
     /* we have to enable therefore the CPU interrupt here */

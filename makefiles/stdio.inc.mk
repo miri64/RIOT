@@ -53,6 +53,9 @@ ifneq (,$(filter stdin,$(USEMODULE)))
   ifneq (,$(filter stdio_uart,$(USEMODULE)))
     USEMODULE += stdio_uart_rx
   endif
+  ifneq (,$(filter stdio_usb_serial_jtag,$(USEMODULE)))
+    USEMODULE += stdio_usb_serial_jtag_rx
+  endif
 endif
 
 ifneq (,$(filter stdio_uart_rx,$(USEMODULE)))

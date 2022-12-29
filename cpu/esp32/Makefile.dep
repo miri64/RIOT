@@ -166,7 +166,7 @@ ifneq (,$(filter shell,$(USEMODULE)))
   USEMODULE += ps
 endif
 
-ifneq (, $(filter stdio_usb_serial_jtag, $(USEMODULE)))
+ifneq (, $(filter stdio_usb_serial_jtag_rx, $(USEMODULE)))
   USEMODULE += isrpipe
 endif
 

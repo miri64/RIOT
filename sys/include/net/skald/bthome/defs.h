@@ -72,7 +72,7 @@ typedef enum {
      * 0 = Closed, 1 = Open
      */
     BTHOME_ID_OPENING_BINARY = 0x11,
-    BTHOME_ID_C02 = 0x12,                       /**< CO2 in _v_ ppm (uint16_t) */
+    BTHOME_ID_CO2 = 0x12,                       /**< CO2 in _v_ ppm (uint16_t) */
     BTHOME_ID_TVOC = 0x13,                      /**< TVOC in _v_ ug/m3 (uint16_t) */
     BTHOME_ID_MOISTURE_FACTOR_0_01 = 0x14,      /**< Moisture in _v_ * 0.01 % (uint16_t) */
     /**

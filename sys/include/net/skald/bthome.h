@@ -32,8 +32,12 @@
  */
 
 #include "byteorder.h"
-
+#include "kernel_defines.h"
 #include "net/skald.h"
+
+#if IS_USED(MODULE_SKALD_BTHOME_SAUL)
+#include "saul_reg.h"
+#endif
 
 #include "net/skald/bthome/defs.h"
 
@@ -42,9 +46,22 @@ extern "C" {
 #endif
 
 /**
+ * @brief Forward declaration of @ref skald_bthome_ctx_t.
+ */
+typedef struct skald_bthome_ctx skald_bthome_ctx_t;
+
+#if IS_USED(MODULE_SKALD_BTHOME_SAUL) || defined(DOXYGEN)
+typedef struct {
+    saul_reg_t saul;
+    skald_bthome_id_t obj_id;
+    int (*add_measurement)(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
+} skald_bthome_saul_t;
+#endif
+
+/**
  * @brief   BTHome advertising context holding the advertising data and state
  */
-typedef struct {
+struct skald_bthome_ctx {
     skald_ctx_t skald;          /**< Skald context */
     /**
      * @brief   Pointer to service data length field
@@ -53,7 +70,10 @@ typedef struct {
      * @ref skald_bthome_init().
      */
     uint8_t *svc_data_len;
-} skald_bthome_ctx_t;
+#if IS_USED(MODULE_SKALD_BTHOME_SAUL) || defined(DOXYGEN)
+    skald_bthome_saul_t *devs;
+#endif
+};
 
 /**
  * @brief   Initialize the next BTHome advertisement
@@ -306,6 +326,23 @@ static inline int skald_bthome_add_int32_measurement(
     uint32_t le_data = htole32((uint32_t)data);
     return skald_bthome_add_measurement(ctx, obj_id, &le_data, sizeof(data));
 }
+
+#if IS_USED(MODULE_SKALD_BTHOME_SAUL) || defined(DOXYGEN)
+/**
+ * @brief   Add SAUL registry entry to BTHome
+ *
+ * skald_bthome_saul_t::saul of @p saul must be a copy of what is found in @ref sys_saul_reg.
+ *
+ * @see @ref sys_saul_reg
+ *
+ * @param[in,out] ctx       The BTHome context. Must not be NULL and must be initialized with
+ *                          @ref skald_bthome_init().
+ * @param[in] dev           A SAUL device.
+ *
+ * @return
+ */
+int skald_bthome_saul_add(skald_bthome_ctx_t *ctx, skald_bthome_saul_t *saul);
+#endif
 
 /**
  * @brief   Starts periodically advertising the BTHome advertisement

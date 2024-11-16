@@ -81,6 +81,11 @@ static void _on_adv_evt(void *arg)
     if ((ctx->cur_chan < ADV_CHAN_NUMOF) && (_radio->context == NULL)) {
         _radio->context = ctx;
         _ble_ctx.chan = _adv_chan[ctx->cur_chan];
+#if IS_USED(MODULE_SKALD_UPDATE_PKT_CB)
+        if (ctx->update_pkt) {
+            ctx->update_pkt(ctx);
+        }
+#endif
         netdev_ble_set_ctx(_radio, &_ble_ctx);
         netdev_ble_send(_radio, &ctx->pkt);
         ++ctx->cur_chan;

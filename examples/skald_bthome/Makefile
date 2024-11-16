@@ -11,9 +11,10 @@ RIOTBASE ?= $(CURDIR)/../..
 USEMODULE += saul_default
 USEMODULE += skald_bthome_saul
 
-DEVELHELP = 1
+DEVELHELP ?= 1
 
 BTHOME_NAME = "RIOT"
+BTHOME_ADV_INTERVAL ?= 60000
 ENCRYPTION_KEY ?=
 
 ifneq ($(ENCRYPTION_KEY),)
@@ -24,6 +25,7 @@ endif
 CFLAGS += -DISR_STACKSIZE=1024
 
 CFLAGS += -DBTHOME_NAME="\"$(BTHOME_NAME)\""
+CFLAGS += -DBTHOME_ADV_INTERVAL=$(BTHOME_ADV_INTERVAL)
 
 # Change this to 0 show compiler invocation lines by default:
 QUIET ?= 1

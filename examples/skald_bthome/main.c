@@ -27,7 +27,11 @@
 #include "net/skald/bthome.h"
 
 #ifndef CONFIG_BTHOME_SAUL_REG_DEVS
-#define CONFIG_BTHOME_SAUL_REG_DEVS   (16U)
+#define CONFIG_BTHOME_SAUL_REG_DEVS     (16U)
+#endif
+
+#ifndef BTHOME_ADV_INTERVAL
+#define BTHOME_ADV_INTERVAL             (60000U)
 #endif
 
 static skald_bthome_ctx_t _ctx;
@@ -119,6 +123,7 @@ int main(void)
         i++;
     }
     assert(!saul_reg || _ctx.devs);
-    skald_bthome_advertise(&_ctx, 10000);
+    skald_bthome_advertise(&_ctx, BTHOME_ADV_INTERVAL);
+    printf("First advertisement should show up in %u ms\n", BTHOME_ADV_INTERVAL);
     return 0;
 }

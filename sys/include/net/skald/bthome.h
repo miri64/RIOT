@@ -45,6 +45,8 @@
 extern "C" {
 #endif
 
+#define SKALD_BTHOME_KEY_LEN    16U
+
 /**
  * @brief Forward declaration of @ref skald_bthome_ctx_t.
  */
@@ -72,6 +74,10 @@ struct skald_bthome_ctx {
     uint8_t *svc_data_len;
 #if IS_USED(MODULE_SKALD_BTHOME_SAUL) || defined(DOXYGEN)
     skald_bthome_saul_t *devs;
+#endif
+#if IS_USED(MODULE_SKALD_BTHOME_ENCRYPT) || defined(DOXYGEN)
+    uint8_t key[SKALD_BTHOME_KEY_LEN];
+    uint8_t encrypt;
 #endif
 };
 
@@ -342,6 +348,10 @@ static inline int skald_bthome_add_int32_measurement(
  * @return
  */
 int skald_bthome_saul_add(skald_bthome_ctx_t *ctx, skald_bthome_saul_t *saul);
+#endif
+
+#if IS_USED(MODULE_SKALD_BTHOME_ENCRYPT) || defined(DOXYGEN)
+int skald_bthome_encrypt(skald_bthome_ctx_t *ctx);
 #endif
 
 /**

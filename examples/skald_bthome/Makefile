@@ -14,8 +14,15 @@ USEMODULE += skald_bthome_saul
 DEVELHELP = 1
 
 BTHOME_NAME = "RIOT"
+ENCRYPTION_KEY ?=
+
+ifneq ($(ENCRYPTION_KEY),)
+  USEMODULE += skald_bthome_encrypt
+  CFLAGS += -DENCRYPTION_KEY="\"$(ENCRYPTION_KEY)\""
+endif
 
 CFLAGS += -DISR_STACKSIZE=1024
+
 CFLAGS += -DBTHOME_NAME="\"$(BTHOME_NAME)\""
 
 # Change this to 0 show compiler invocation lines by default:

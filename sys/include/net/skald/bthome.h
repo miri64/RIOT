@@ -19,7 +19,9 @@
  *
  * # Implementation state
  * - BTHome v2 is mostly supported
- * - [Encryption](https://bthome.io/encryption/) is not supported
+ * - [Encryption](https://bthome.io/encryption/) is supported and the format is
+ *   confirmed to provide the expected output, but Home Assistant does not
+ *   accept the encryption key to decrypt the message.
  * - [Trigger based devices](https://bthome.io/format/#bthome-data-format) are not supported
  *
  *

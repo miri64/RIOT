@@ -55,9 +55,14 @@ extern "C" {
 typedef struct skald_bthome_ctx skald_bthome_ctx_t;
 
 #if IS_USED(MODULE_SKALD_BTHOME_SAUL) || defined(DOXYGEN)
+typedef enum {
+    SKALD_BTHOME_SAUL_FLAGS_CUSTOM = 0x01,
+} skald_bthome_flags_t;
+
 typedef struct {
     saul_reg_t saul;
     skald_bthome_id_t obj_id;
+    skald_bthome_flags_t flags;
     int (*add_measurement)(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
 } skald_bthome_saul_t;
 #endif

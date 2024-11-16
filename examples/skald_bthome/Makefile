@@ -7,16 +7,15 @@ BOARD ?= nrf52dk
 # This has to be the absolute path to the RIOT base directory:
 RIOTBASE ?= $(CURDIR)/../..
 
-# include Skald
-USEMODULE += skald_bthome
+# include Skald using SAUL
+USEMODULE += saul_default
+USEMODULE += skald_bthome_saul
 
-# Comment this out to disable code in RIOT that does safety checking
-# which is not needed in a production environment but helps in the
-# development process:
-# CFLAGS += -DDEVELHELP
+DEVELHELP = 1
 
 BTHOME_NAME = "RIOT"
 
+CFLAGS += -DISR_STACKSIZE=1024
 CFLAGS += -DBTHOME_NAME="\"$(BTHOME_NAME)\""
 
 # Change this to 0 show compiler invocation lines by default:

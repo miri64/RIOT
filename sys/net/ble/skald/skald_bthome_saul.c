@@ -13,8 +13,6 @@
  * @author  Martine S. Lenders <mail@martine-lenders.eu>
  */
 
-#include <stdio.h>
-
 #include "net/skald/bthome.h"
 
 static int _add_50perc_to_binary_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
@@ -34,6 +32,7 @@ static int _add_g_force_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_
 static int _add_ppb_to_ugm3_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
 static int _add_times_10_uint8_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
 static int _add_times_10_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
+static int _add_times_10_uint24_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
 static int _add_times_100_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
 static int _add_times_100_uint24_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
 static int _add_times_1000_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx);
@@ -165,6 +164,10 @@ static int _saul_sense_to_bthome_id(skald_bthome_saul_t *saul, const phydat_t *d
                 return 0;
             case 0:
                 saul->add_measurement = &_add_uint24_measurement;
+                return 0;
+            case 1:
+                /* 10^1 Pa = 0.1 hPa */
+                saul->add_measurement = &_add_times_10_uint24_measurement;
                 return 0;
             case 2:
                 /* 10^2 Pa = 1 hPa */
@@ -448,6 +451,12 @@ int skald_bthome_saul_add(skald_bthome_ctx_t *ctx, skald_bthome_saul_t *saul)
     }
     if (ctx->devs) {
         skald_bthome_saul_t *ptr = ctx->devs;
+
+        if (ptr->obj_id > saul->obj_id) {
+            saul->saul.next = &ptr->saul;
+            ctx->devs = saul;
+            return 0;
+        }
         while (ptr) {
             skald_bthome_saul_t *next = container_of(
                 ptr->saul.next, skald_bthome_saul_t, saul
@@ -510,24 +519,30 @@ static int _add_uint24_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phyd
 
 static int _add_g_force_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx)
 {
-    uint32_t d = data->val[idx];
+    int32_t d = data->val[idx];
     /* 1g ~= 9.807 m/s² */
     d *= 98;
     d /= 10;
-    if (d > UINT16_MAX) {
-        d = UINT16_MAX;
+    if (d > INT16_MAX) {
+        d = INT16_MAX;
+    }
+    if (d < INT16_MIN) {
+        d = INT16_MIN;
     }
     return skald_bthome_add_uint16_measurement(ctx, obj_id, (uint16_t)d);
 }
 
 static int _add_ppb_to_ugm3_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx)
 {
-    uint32_t d = data->val[idx];
+    int32_t d = data->val[idx];
     /* see https://www.arcskoru.com/sites/default/files/Arc%20Guide%20to%20Re-Entry.pdf page 26 */
     d *= 3767;
     d /= 1000;
-    if (d > UINT16_MAX) {
-        d = UINT16_MAX;
+    if (d > INT16_MAX) {
+        d = INT16_MAX;
+    }
+    if (d < INT16_MIN) {
+        d = INT16_MIN;
     }
     return skald_bthome_add_uint16_measurement(ctx, obj_id, (uint16_t)d);
 }
@@ -575,6 +590,11 @@ static int _add_times_10_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj
 static int _add_times_100_uint16_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx)
 {
     return skald_bthome_add_uint16_measurement(ctx, obj_id, (uint16_t)(data->val[idx] * 100));
+}
+
+static int _add_times_10_uint24_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx)
+{
+    return skald_bthome_add_uint24_measurement(ctx, obj_id, (uint32_t)(data->val[idx] * 10));
 }
 
 static int _add_times_100_uint24_measurement(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx)

@@ -51,6 +51,10 @@
 #include "net/ble.h"
 #include "net/netdev/ble.h"
 
+#if IS_USED(MODULE_SKALD_UPDATE_PKT_CB)
+#include "event.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -87,6 +91,8 @@ struct skald_ctx {
      * Requires module `skald_pkt_update_cb`
      */
     void (*update_pkt)(skald_ctx_t *);
+    event_queue_t queue;
+    event_t event;
 #endif
     ztimer_t timer;                     /**< timer for scheduling advertising events */
     ztimer_now_t last;                  /**< last timer trigger (for offset compensation) */

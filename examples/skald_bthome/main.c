@@ -127,9 +127,11 @@ int main(void)
         if ((res = skald_bthome_saul_add(&_ctx, &_saul_devs[i])) < 0) {
             errno = -res;
             perror("Unable to add sensor to BTHome");
+            dev = dev->next;
+            continue;
         };
-        dev = dev->next;
         i++;
+        dev = dev->next;
     }
     assert(!saul_reg || _ctx.devs);
     if (i < CONFIG_BTHOME_SAUL_REG_DEVS) {
@@ -144,6 +146,4 @@ int main(void)
         i++;
     }
     skald_bthome_advertise(&_ctx, BTHOME_ADV_INTERVAL);
-    printf("First advertisement should show up in %u ms\n", BTHOME_ADV_INTERVAL);
-    return 0;
 }

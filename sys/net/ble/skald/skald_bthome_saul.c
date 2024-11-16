@@ -464,6 +464,7 @@ int skald_bthome_saul_add(skald_bthome_ctx_t *ctx, skald_bthome_saul_t *saul)
                 ptr->saul.next = &saul->saul;
                 break;
             }
+            ptr = next;
         }
     }
     else {

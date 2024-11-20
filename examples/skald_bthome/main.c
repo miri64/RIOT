@@ -113,6 +113,7 @@ int main(void)
 #endif
     _ctx.skald.update_pkt = NULL;
     _ctx.devs = NULL;
+    _ctx.skald.pkt.len = 0;
     if (skald_bthome_init(&_ctx, NULL, BTHOME_NAME, 0) < 0) {
         return 1;
     }

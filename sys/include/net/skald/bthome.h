@@ -86,6 +86,9 @@ struct skald_bthome_ctx {
     uint8_t key[SKALD_BTHOME_KEY_LEN];
     uint8_t encrypt;
 #endif
+#if IS_USED(MODULE_SKALD_BTHOME_SAUL) || defined(DOXYGEN)
+    uint8_t last_dev_sent;
+#endif
 };
 
 /**

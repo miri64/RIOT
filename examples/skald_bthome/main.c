@@ -122,9 +122,9 @@ int main(void)
         return 1;
     }
     while (dev && (i < CONFIG_BTHOME_SAUL_REG_DEVS)) {
-        printf("Adding %s to BTHome.\n", dev->name);
         _saul_devs[i].saul = *dev;  /* copy registry entry */
         _saul_devs[i].saul.next = NULL;
+        printf("Adding %s (%s) to BTHome.\n", dev->name, saul_class_to_str(dev->driver->type));
         if ((res = skald_bthome_saul_add(&_ctx, &_saul_devs[i])) < 0) {
             errno = -res;
             perror("Unable to add sensor to BTHome");

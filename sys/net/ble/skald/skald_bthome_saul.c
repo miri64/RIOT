@@ -431,7 +431,8 @@ static void _update_saul_measurements(skald_ctx_t *skald_ctx)
 
 int skald_bthome_saul_add(skald_bthome_ctx_t *ctx, skald_bthome_saul_t *saul)
 {
-    if ((saul->saul.driver->type & SAUL_CAT_MASK) != SAUL_CAT_SENSE) {
+    if ((saul->saul.driver != NULL) &&
+        (saul->saul.driver->type & SAUL_CAT_MASK) != SAUL_CAT_SENSE) {
         return -ENOTSUP;
     }
 

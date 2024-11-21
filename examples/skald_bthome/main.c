@@ -18,7 +18,6 @@
  * @}
  */
 
-#include <errno.h>
 #include <stdio.h>
 
 #include "saul_reg.h"
@@ -78,13 +77,10 @@ int _get_encryption_key(void)
 }
 #endif
 
-static int _add_text(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx)
+static int _add_battery_binary(skald_bthome_ctx_t *ctx, uint8_t obj_id, phydat_t *data, uint8_t idx)
 {
-    static const char info[] = "RIOT";
 
-    (void)data;
-    (void)idx;
-    return skald_bthome_add_measurement(ctx, obj_id, info, strlen(info));
+    return skald_bthome_add_uint8_measurement(ctx, obj_id, (data->val[idx] < 3500) ? 0x01 : 0x00);
 }
 
 int main(void)
@@ -122,12 +118,33 @@ int main(void)
         return 1;
     }
     while (dev && (i < CONFIG_BTHOME_SAUL_REG_DEVS)) {
+        if ((dev->driver->type == SAUL_SENSE_VOLTAGE) && (strcmp(dev->name, "BAT") == 0)) {
+            printf("Adding %s (%s) to BTHome.\n", dev->name, saul_class_to_str(dev->driver->type));
+            _saul_devs[i].saul = *dev;  /* copy registry entry */
+            _saul_devs[i].saul.next = NULL;
+            _saul_devs[i].obj_id = BTHOME_ID_BATTERY_BINARY;
+            _saul_devs[i].flags = SKALD_BTHOME_SAUL_FLAGS_CUSTOM;
+            _saul_devs[i].add_measurement = _add_battery_binary;
+
+            if ((res = skald_bthome_saul_add(&_ctx, &_saul_devs[i])) < 0) {
+                printf("Unable to add sensor to BTHome (%d)\n", -res);
+            };
+            i++;
+        }
+        if ((dev->driver->type == SAUL_SENSE_BTN)
+            || (dev->driver->type == SAUL_SENSE_ACCEL)
+            || (dev->driver->type == SAUL_SENSE_GYRO)
+            || (dev->driver->type == SAUL_SENSE_TEMP && (strcmp(dev->name, "NRF_TEMP") != 0))
+        ) {
+            printf("Skipping %s (%s).\n", dev->name, saul_class_to_str(dev->driver->type));
+            dev = dev->next;
+            continue;
+        }
         _saul_devs[i].saul = *dev;  /* copy registry entry */
         _saul_devs[i].saul.next = NULL;
         printf("Adding %s (%s) to BTHome.\n", dev->name, saul_class_to_str(dev->driver->type));
         if ((res = skald_bthome_saul_add(&_ctx, &_saul_devs[i])) < 0) {
-            errno = -res;
-            perror("Unable to add sensor to BTHome");
+            printf("Unable to add sensor to BTHome (%d)\n", -res);
             dev = dev->next;
             continue;
         };
@@ -135,16 +152,5 @@ int main(void)
         dev = dev->next;
     }
     assert(!saul_reg || _ctx.devs);
-    if (i < CONFIG_BTHOME_SAUL_REG_DEVS) {
-        memset(&_saul_devs[i].saul, 0, sizeof(_saul_devs[i].saul));
-        _saul_devs[i].obj_id = BTHOME_ID_TEXT;
-        _saul_devs[i].flags = SKALD_BTHOME_SAUL_FLAGS_CUSTOM;
-        _saul_devs[i].add_measurement = _add_text;
-        if ((res = skald_bthome_saul_add(&_ctx, &_saul_devs[i])) < 0) {
-            errno = -res;
-            perror("Unable to add text info to BTHome");
-        };
-        i++;
-    }
     skald_bthome_advertise(&_ctx, BTHOME_ADV_INTERVAL);
 }

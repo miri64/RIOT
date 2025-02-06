@@ -20,7 +20,8 @@ This example comes with support for three uplink types pre-configured:
 
  - [`ethos`](https://doc.riot-os.org/group__drivers__ethos.html) (default)
  - [`slip`](https://tools.ietf.org/html/rfc1055)
- - `wifi`
+ - `wifi` (if available)
+ - `cdc-ecm` (Ethernet over USB, if available)
 
 For `native` the host-facing [`netdev_tap`](https://doc.riot-os.org/netdev__tap_8h.html) device
 is configured, providing connectivity via a TAP interface to the RIOT instance.
@@ -43,6 +44,9 @@ credentials. You can alternatively edit the `Makefile`.
 
 Currently, `wifi` requires an esp8266 or esp32 for the border router and will default
 to using `esp_now` for the downstream interface.
+
+For `cdc-ecm` you need a board that provides the [`periph_usbdev` feature](https://doc.riot-os.org/feature-list.html).
+You can check this in the `Makefile.features` of your board in `boards/`.
 
 ### Connection sharing with host
 

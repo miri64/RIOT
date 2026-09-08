@@ -238,6 +238,10 @@ void sixlowpan_print(uint8_t *data, size_t size)
 
         if (data[1] & SIXLOWPAN_IPHC2_CID_EXT) {
             offset += SIXLOWPAN_IPHC_CID_EXT_LEN;
+            if (offset > size) {
+                printf("CID bit set but no CID extension provided (header malformed)\n");
+                return;
+            }
             printf("SCI: 0x%x, DCI: 0x%x\n", (unsigned)(data[2] >> 4),
                    (unsigned)(data[2] & 0xf));
         }

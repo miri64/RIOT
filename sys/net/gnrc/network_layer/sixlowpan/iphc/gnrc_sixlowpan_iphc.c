@@ -525,19 +525,41 @@ static size_t _iphc_nhc_ipv6_ext_decode(gnrc_pktsnip_t *sixlo, size_t offset,
     ipv6_ext_t *ext_hdr;
     uint8_t ipv6_ext_nhc, protnum, ext_len;
 
-    if (sixlo->size < (offset + 1)) {
+    if (sixlo->size < (offset + 2)) {
         /* sixlo pkt too small */
         return 0;
     }
     ipv6_ext_nhc = payload[offset++];
 
     if (ipv6_ext_nhc & NHC_IPV6_EXT_NH) {
-        ext_len = payload[offset];
-    } else if (sixlo->size < (offset + 1)) {
+        switch (ipv6_ext_nhc & NHC_IPV6_EXT_EID_MASK) {
+            case NHC_IPV6_EXT_EID_HOPOPT:
+                protnum = PROTNUM_IPV6_EXT_HOPOPT;
+                break;
+            case NHC_IPV6_EXT_EID_RH:
+                protnum = PROTNUM_IPV6_EXT_RH;
+                break;
+            case NHC_IPV6_EXT_EID_FRAG:
+                protnum = PROTNUM_IPV6_EXT_FRAG;
+                break;
+            case NHC_IPV6_EXT_EID_DST:
+                protnum = PROTNUM_IPV6_EXT_DST;
+                break;
+            case NHC_IPV6_EXT_EID_MOB:
+                protnum = PROTNUM_IPV6_EXT_MOB;
+                break;
+            default:
+                DEBUG("6lo iphc: unexpected extension header EID %u\n",
+                      (ipv6_ext_nhc & NHC_IPV6_EXT_EID_MASK) >> 1U);
+                return 0;
+        }
+        ext_len = payload[offset++];
+    } else if (sixlo->size < (offset + 2)) {
         /* sixlo pkt too small */
         return 0;
     } else {
-        ext_len = payload[offset + 1];
+        protnum = payload[offset++];
+        ext_len = payload[offset++];
     }
 
     /* realloc size for uncompressed snip, if too small */
@@ -551,28 +573,8 @@ static size_t _iphc_nhc_ipv6_ext_decode(gnrc_pktsnip_t *sixlo, size_t offset,
         }
     }
     ext_hdr = (ipv6_ext_t *)((uint8_t *)ipv6->data + *uncomp_hdr_len);
-    switch (ipv6_ext_nhc & NHC_IPV6_EXT_EID_MASK) {
-        case NHC_IPV6_EXT_EID_HOPOPT:
-            protnum = PROTNUM_IPV6_EXT_HOPOPT;
-            break;
-        case NHC_IPV6_EXT_EID_RH:
-            protnum = PROTNUM_IPV6_EXT_RH;
-            break;
-        case NHC_IPV6_EXT_EID_FRAG:
-            protnum = PROTNUM_IPV6_EXT_FRAG;
-            break;
-        case NHC_IPV6_EXT_EID_DST:
-            protnum = PROTNUM_IPV6_EXT_DST;
-            break;
-        case NHC_IPV6_EXT_EID_MOB:
-            protnum = PROTNUM_IPV6_EXT_MOB;
-            break;
-        default:
-            DEBUG("6lo iphc: unexpected extension header EID %u\n",
-                  (ipv6_ext_nhc & NHC_IPV6_EXT_EID_MASK) >> 1U);
-            return 0;
-    }
     ((uint8_t *)ipv6->data)[*prev_nh_offset] = protnum;
+
     if (!(ipv6_ext_nhc & NHC_IPV6_EXT_NH)) {
         /* size was checked above when NHC_IPV6_EXT_NH was pre-checked to get ext_len */
         ext_hdr->nh = payload[offset++];
@@ -582,8 +584,7 @@ static size_t _iphc_nhc_ipv6_ext_decode(gnrc_pktsnip_t *sixlo, size_t offset,
     else {
         *prev_nh_offset = (&ext_hdr->nh) - ((uint8_t *)ipv6->data);
     }
-    /* skip already fetched length field */
-    offset++;
+
     if (sixlo->size < (offset + ext_len)) {
         /* sixlo pkt too small */
         return 0;
@@ -907,7 +908,9 @@ void gnrc_sixlowpan_iphc_recv(gnrc_pktsnip_t *sixlo, void *rbuf_ptr,
                                                            &prev_nh_offset,
                                                            ipv6,
                                                            &uncomp_hdr_len);
-                    if ((payload_offset == 0) || (payload_offset > sixlo->size)) {
+                    /* after IPv6 extension headers more NHC will come so check for
+                     * payload_offset >= instead of > sixlo->size*/
+                    if ((payload_offset == 0) || (payload_offset >= sixlo->size)) {
                         /* unable to parse IPHC header or malicious packet */
                         DEBUG("6lo iphc: malformed IPHC NHC IPv6 header\n");
                         _recv_error_release(sixlo, ipv6, rbuf);

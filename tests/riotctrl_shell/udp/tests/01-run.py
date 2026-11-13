@@ -175,6 +175,17 @@ class TestUDP(riotctrl_shell_tests.testcase_base.TestBase):
         assert stats[0]["dst"] == "2001:db8::3"
         assert stats[0]["dport"] == 1234
 
+    def test_udp_client_send_generated(self):
+        payload_len = 10
+        res = self.shell.udp_client_send("2001:db8::1", 5683, payload_len)
+        stats = self.udp_parser.parse(res)
+        byts = self.od_parser.parse(res)
+        assert byts == b"\x00" * payload_len
+        assert len(stats) == 1
+        assert stats[0]["payload_len"] == payload_len
+        assert stats[0]["dst"] == "2001:db8::1"
+        assert stats[0]["dport"] == 5683
+
     def test_udp_client_only_count(self):
         count = 3
         start = time.time()
@@ -207,6 +218,28 @@ class TestUDP(riotctrl_shell_tests.testcase_base.TestBase):
             assert stats[i]["dst"] == "2001:db8::1"
             assert stats[i]["dport"] == 5683
         assert (stop - start) >= (count - 1) * timeout / 1_000_000
+
+    def test_udp_client_send_multiple_generated(self):
+        payload_len = 16
+        count = 20
+        timeout = 500
+        # repeat twice so that we check that the payload generating counter resets
+        for _ in range(2):
+            start = time.time()
+            res = self.shell.udp_client_send(
+                "2001:db8::1", 5683, payload_len, count, timeout
+            )
+            stop = time.time()
+            stats = self.udp_parser.parse(res)
+            byts = self.od_parser.parse_multiple(res)
+            assert len(byts) == count
+            assert len(stats) == count
+            for i in range(count):
+                assert byts[i] == (i.to_bytes(1) * payload_len)
+                assert stats[i]["payload_len"] == payload_len
+                assert stats[i]["dst"] == "2001:db8::1"
+                assert stats[i]["dport"] == 5683
+            assert (stop - start) >= (count - 1) * timeout / 1_000_000
 
 
 class UDPServerTestShell(

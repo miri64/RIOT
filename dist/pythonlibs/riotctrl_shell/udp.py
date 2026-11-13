@@ -85,7 +85,7 @@ class UDPClient(ShellInteraction):
         self,
         dest_addr: str,
         port: Union[str, int],
-        payload: Union[str, bytes],
+        payload: Union[str, bytes, int],
         count: Optional[int] = None,
         delay_us: Optional[int] = None,
         async_: bool = False,
@@ -106,10 +106,14 @@ class UDPClient(ShellInteraction):
             timeout = 1
         if isinstance(payload, bytes):
             flags = "-b "
-            payload = payload.hex()
+            payload = f'"{payload.hex()}"'
+        elif isinstance(payload, int):
+            payload = f"-d {payload:d}"
+        else:
+            payload = f'"{payload}"'
         addr_port = self.ADDR_PORT_PAIR_FMT.format(addr=dest_addr, port=port)
         res = self.cmd(
-            f'udp send {flags}{addr_port} "{payload}"{delay_str}',
+            f"udp send {flags}{addr_port} {payload}{delay_str}",
             timeout=timeout,
             async_=async_,
         )

@@ -123,8 +123,8 @@ def test_udp_server_check_output(expect_sequence, count, delay, expected):
             1000000,
             'udp send -b [ff02::1]:1337 "abcdef" 1000 1000000',
         ),
-        ("affe::1", 61616, 15, 1000, 0, 'udp send [affe::1]:61616 "15" 1000'),
-        ("fe80::1", 52, 1000, 1000, 10, 'udp send [fe80::1]:52 "1000" 1000 10'),
+        ("affe::1", 61616, 15, 1000, 0, 'udp send [affe::1]:61616 -d 15 1000'),
+        ("fe80::1", 52, 1000, 1000, 10, 'udp send [fe80::1]:52 -d 1000 1000 10'),
     ],
 )
 def test_udp_client_send(dest_addr, port, payload, count, delay_ms, expected):
